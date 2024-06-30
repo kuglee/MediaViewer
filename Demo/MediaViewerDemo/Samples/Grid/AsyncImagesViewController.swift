@@ -42,7 +42,7 @@ final class AsyncImagesViewController: UIViewController {
             item: (
                 asset: asset,
                 contentMode: self.preferredContentMode,
-                screenScale: self.view.window?.screen.scale ?? 3
+                screenScale: self.traitCollection.displayScale
             )
         )
     }
