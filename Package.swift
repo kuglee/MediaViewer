@@ -6,7 +6,8 @@ import PackageDescription
 let package = Package(
     name: "MediaViewer",
     platforms: [
-        .iOS(.v16)
+        .iOS(.v16),
+        .visionOS(.v1),
     ],
     products: [
         .library(
