@@ -125,7 +125,7 @@ final class MediaViewerPageControlBar: UIView {
     
     private lazy var cellRegistration = CellRegistration { [weak self] cell, indexPath, mediaIdentifier in
         guard let self, let dataSource else { return }
-        let scale = window?.screen.scale ?? 3
+        let scale = traitCollection.displayScale
         let preferredSize = CGSize(
             width: cell.bounds.width * scale,
             height: cell.bounds.height * scale
