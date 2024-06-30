@@ -7,7 +7,7 @@ A comfortable media viewer like the iOS standard.
 ## Requirements
 
 - iOS 16+
-- Swift 5.8+
+- Swift 5.9+
 
 ## How to use
 
