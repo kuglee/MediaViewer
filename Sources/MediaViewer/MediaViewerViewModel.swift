@@ -64,89 +64,11 @@ extension MediaViewerViewModel {
     }
     
     func paging(
-        afterDeleting deletingIdentifiers: some Sequence<AnyMediaIdentifier>,
         currentIdentifier: AnyMediaIdentifier
-    ) -> PagingAfterReloading? {
-        guard deletingIdentifiers.contains(currentIdentifier) else {
-            // Stay on the current page
-            return .init(
-                destinationIdentifier: currentIdentifier,
-                direction: nil
-            )
-        }
-        
-        let splitIdentifiers = mediaIdentifiers.split(
-            separator: currentIdentifier,
-            maxSplits: 2,
-            omittingEmptySubsequences: false
+    ) -> PagingAfterReloading {
+        .init(
+            destinationIdentifier: currentIdentifier,
+            direction: nil
         )
-        let backwardIdentifiers = splitIdentifiers[0]
-        let forwardIdentifiers = splitIdentifiers[1]
-        
-        // TODO: Prefer the recent paging direction
-        if let nearestForward = forwardIdentifiers.first(where: {
-            !deletingIdentifiers.contains($0)
-        }) {
-            return .init(
-                destinationIdentifier: nearestForward,
-                direction: .forward
-            )
-        } else if let nearestBackward = backwardIdentifiers.last(where: {
-            !deletingIdentifiers.contains($0)
-        }) {
-            return .init(
-                destinationIdentifier: nearestBackward,
-                direction: .reverse
-            )
-        }
-        
-        // When all pages are deleted, close the viewer and do not perform paging animation
-        return nil
-    }
-}
-
-// MARK: - Page control bar interactive paging -
-
-extension MediaViewerViewModel {
-    
-    enum PageControlBarInteractivePagingAction: Hashable {
-        case start(forwards: Bool)
-        case update(progress: Double)
-        case finish
-        case cancel
-    }
-    
-    func pageControlBarInteractivePagingAction(
-        on currentState: MediaViewerPageControlBar.State,
-        scrollOffsetX: Double,
-        scrollAreaWidth: Double
-    ) -> PageControlBarInteractivePagingAction? {
-        let progress0To2 = scrollOffsetX / scrollAreaWidth
-        let isMovingToNextPage = progress0To2 > 1
-        let rawProgress = isMovingToNextPage ? (progress0To2 - 1) : (1 - progress0To2)
-        let progress = min(max(rawProgress, 0), 1)
-        
-        switch currentState {
-        case .collapsing, .collapsed, .expanding, .expanded:
-            // Prevent start when paging is finished and progress is reset to 0.
-            guard progress != 0 else { return nil }
-            return .start(forwards: isMovingToNextPage)
-        case .transitioningInteractively(_, let forwards):
-            if progress == 1 {
-                return .finish
-            } else if progress == 0 || forwards != isMovingToNextPage {
-                // progress is 0 or direction is changed
-                /*
-                 NOTE:
-                 Since the progress value sometimes jumps over zero,
-                 the direction change is also checked.
-                 */
-                return .cancel
-            } else {
-                return .update(progress: progress)
-            }
-        case .reloading:
-            return nil
-        }
     }
 }

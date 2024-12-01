@@ -31,33 +31,6 @@ public protocol MediaViewerDataSource<MediaIdentifier>: AnyObject {
         mediaWith mediaIdentifier: MediaIdentifier
     ) -> Media
     
-    /// Asks the data source to return an aspect ratio of media with the specified identifier.
-    ///
-    /// The aspect ratio is calculated by dividing the media width by the height.
-    /// It will be used to determine a size of page thumbnail.
-    /// This method should return immediately.
-    ///
-    /// - Parameters:
-    ///   - mediaViewer: An object representing the media viewer requesting this information.
-    ///   - mediaIdentifier: An identifier for media.
-    /// - Returns: An aspect ratio of media with `mediaIdentifier`.
-    func mediaViewer(
-        _ mediaViewer: MediaViewerViewController,
-        widthToHeightOfMediaWith mediaIdentifier: MediaIdentifier
-    ) -> CGFloat?
-    
-    /// Asks the data source to return a source of a thumbnail image on the page control bar in the media viewer.
-    /// - Parameters:
-    ///   - mediaViewer: An object representing the media viewer requesting this information.
-    ///   - mediaIdentifier: An identifier for media.
-    ///   - preferredThumbnailSize: An expected size of the thumbnail image. For better performance, it is preferable to shrink the thumbnail image to a size that fills this size.
-    /// - Returns: A source of a thumbnail image on the page control bar in `mediaViewer`.
-    func mediaViewer(
-        _ mediaViewer: MediaViewerViewController,
-        pageThumbnailForMediaWith mediaIdentifier: MediaIdentifier,
-        filling preferredThumbnailSize: CGSize
-    ) -> Source<UIImage?>
-    
     /// Asks the data source to return the transition source view for media currently viewed in the viewer.
     ///
     /// The media viewer uses this view for push or pop transitions.
@@ -109,27 +82,6 @@ extension MediaViewerDataSource {
     
     public func mediaViewer(
         _ mediaViewer: MediaViewerViewController,
-        pageThumbnailForMediaWith mediaIdentifier: MediaIdentifier,
-        filling preferredThumbnailSize: CGSize
-    ) -> Source<UIImage?> {
-        let media = self.mediaViewer(mediaViewer, mediaWith: mediaIdentifier)
-        switch media {
-        case .image(.sync(let image)):
-            return .sync(
-                image?.preparingThumbnail(of: preferredThumbnailSize) ?? image
-            )
-        case .image(.async(let transition, let imageProvider)):
-            return .async(transition: transition) {
-                let image = await imageProvider()
-                return await image?.byPreparingThumbnail(
-                    ofSize: preferredThumbnailSize
-                ) ?? image
-            }
-        }
-    }
-    
-    public func mediaViewer(
-        _ mediaViewer: MediaViewerViewController,
         transitionSourceImageWith sourceView: UIView?
     ) -> UIImage? {
         switch sourceView {
@@ -162,18 +114,6 @@ extension MediaViewerDataSource {
         self.mediaViewer(
             mediaViewer,
             widthToHeightOfMediaWith: mediaIdentifier.as(MediaIdentifier.self)
-        )
-    }
-    
-    func mediaViewer(
-        _ mediaViewer: MediaViewerViewController,
-        pageThumbnailForMediaWith mediaIdentifier: AnyMediaIdentifier,
-        filling preferredThumbnailSize: CGSize
-    ) -> Source<UIImage?> {
-        self.mediaViewer(
-            mediaViewer,
-            pageThumbnailForMediaWith: mediaIdentifier.as(MediaIdentifier.self),
-            filling: preferredThumbnailSize
         )
     }
     

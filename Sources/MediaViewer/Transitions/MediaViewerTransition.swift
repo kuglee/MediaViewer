@@ -149,25 +149,10 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
             navigationBar.alpha = 0
         }
         
-        // Disable the default animation applied to the toolbar
-        let toolbar = navigationController.toolbar!
-        if let animationKeys = toolbar.layer.animationKeys() {
-            assert(animationKeys.allSatisfy { $0.starts(with: "position") })
-            toolbar.layer.removeAllAnimations()
-        }
-        
-        var viewsToFadeInDuringTransition = mediaViewer.subviewsToFadeDuringTransition
-        if wasTabBarHidden {
-            viewsToFadeInDuringTransition.append(mediaViewer.pageControlToolbar)
-        }
-        if mediaViewer.toolbarHiddenBackup {
-            viewsToFadeInDuringTransition.append(toolbar)
-        }
-        for view in viewsToFadeInDuringTransition {
+        let viewsToFadeInDuringTransition = mediaViewer.subviewsToFadeDuringTransition
+        for view in mediaViewer.subviewsToFadeDuringTransition {
             view.alpha = 0
         }
-        
-        mediaViewer.willStartPushTransition()
         
         // MARK: Animation
         
@@ -190,24 +175,12 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
                 currentPageImageView.contentMode = sourceView.contentMode
             }
             currentPageImageView.layer.masksToBounds = true
-            
-            /*
-             [Workaround]
-             If the tabBar becomes hidden and the toolbar remains visible,
-             move it manually because repositioning is not animated.
-             */
-            if !mediaViewer.toolbarHiddenBackup,
-               let tabBar,
-               mediaViewer.hidesBottomBarWhenPushed {
-                toolbar.frame.origin.y = tabBar.frame.origin.y
-            }
         }
         animator.addCompletion { position in
             defer { transitionContext.completeTransition() }
             switch position {
             case .end:
                 // Restore properties
-                mediaViewer.didFinishPushTransition()
                 currentPageImageView.transitioningConfiguration = configurationBackup
                 currentPageView.restoreLayoutConfigurationAfterTransition()
                 self.sourceView?.isHidden = sourceViewHiddenBackup
@@ -232,8 +205,7 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         guard let mediaViewer = transitionContext.viewController(forKey: .from) as? MediaViewerViewController,
               let mediaViewerView = transitionContext.view(forKey: .from),
               let toView = transitionContext.view(forKey: .to),
-              let toVC = transitionContext.viewController(forKey: .to),
-              let navigationController = mediaViewer.navigationController
+              let toVC = transitionContext.viewController(forKey: .to)
         else {
             preconditionFailure(
                 "\(Self.self) works only with the push/pop animation for \(MediaViewerViewController.self)."
@@ -245,29 +217,8 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         
         // Back up
         let sourceViewHiddenBackup = sourceView?.isHidden ?? false
-        let toVCToolbarItemsBackup = toVC.toolbarItems
-        let toVCAdditionalSafeAreaInsetsBackup = toVC.additionalSafeAreaInsets
-        
+
         // MARK: Prepare for the transition
-        
-        let toolbar = navigationController.toolbar!
-        assert(toolbar.layer.animationKeys() == nil)
-        
-        // [Workaround] Prevent toVC.toolbarItems from showing up during transition.
-        if mediaViewer.toolbarHiddenBackup {
-            toVC.toolbarItems = nil
-        }
-        
-        /*
-         [Workaround]
-         Even if toVC hides the toolbar, the bottom of the safe area will
-         shift during the transition as if the toolbar were visible, and
-         the layout will be corrupted.
-         To avoid this, adjust the safe area only during the transition.
-         */
-        if mediaViewer.toolbarHiddenBackup {
-            toVC.additionalSafeAreaInsets.bottom = -toolbar.bounds.height
-        }
         
         toView.frame = transitionContext.finalFrame(for: toVC)
         toView.layoutIfNeeded()
@@ -289,18 +240,8 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         mediaViewer.insertImageViewForTransition(currentPageImageView)
         sourceView?.isHidden = true
         
-        mediaViewer.willStartPopTransition()
-        
-        var viewsToFadeOutDuringTransition = mediaViewer.subviewsToFadeDuringTransition
-        let tabBar = toVC.tabBarController?.tabBar
-        let isTabBarHidden = tabBar?.isHidden ?? true
-        if isTabBarHidden {
-            if mediaViewer.toolbarHiddenBackup {
-                viewsToFadeOutDuringTransition.append(toolbar)
-            }
-            viewsToFadeOutDuringTransition.append(mediaViewer.pageControlToolbar)
-        }
-        
+        let viewsToFadeOutDuringTransition = mediaViewer.subviewsToFadeDuringTransition
+
         // MARK: Animation
         
         // NOTE: Animate only pageControlToolbar with easeInOut curve.
@@ -313,9 +254,6 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
             for view in viewsToFadeOutDuringTransition {
                 view.alpha = 0
             }
-            if !mediaViewer.toolbarHiddenBackup {
-                toolbar.alpha = mediaViewer.toolbarAlphaBackup
-            }
             if let sourceFrameInViewer {
                 currentPageImageView.frame = sourceFrameInViewer
                 currentPageImageView.transitioningConfiguration = self.sourceView!.transitioningConfiguration
@@ -323,15 +261,6 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
                 currentPageImageView.alpha = 0
             }
             currentPageImageView.clipsToBounds = true // TODO: Change according to the source configuration
-            
-            /*
-             [Workaround]
-             If the tabBar becomes visible and the toolbar remains visible,
-             move it manually because repositioning is not animated.
-             */
-            if !mediaViewer.toolbarHiddenBackup, let tabBar {
-                toolbar.frame.origin.y = tabBar.frame.origin.y - toolbar.bounds.height
-            }
         }
         
         // Customize the tabBar animation
@@ -367,19 +296,6 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
                 
                 // Restore properties
                 self.sourceView?.isHidden = sourceViewHiddenBackup
-                toVC.toolbarItems = toVCToolbarItemsBackup
-                toVC.additionalSafeAreaInsets = toVCAdditionalSafeAreaInsetsBackup
-                navigationController.isToolbarHidden = mediaViewer.toolbarHiddenBackup
-                toolbar.alpha = mediaViewer.toolbarAlphaBackup
-                
-                // Disable the default animation applied to the toolbar
-                if let animationKeys = toolbar.layer.animationKeys() {
-                    assert(animationKeys.allSatisfy {
-                        $0.starts(with: "position")
-                        || $0.starts(with: "bounds.size")
-                    })
-                    toolbar.layer.removeAllAnimations()
-                }
             case .start, .current:
                 assertionFailure("Unexpected position: \(position)")
             @unknown default:

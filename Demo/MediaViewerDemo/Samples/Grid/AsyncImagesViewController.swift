@@ -175,21 +175,6 @@ extension AsyncImagesViewController: UICollectionViewDelegate {
         let asset = dataSource.itemIdentifier(for: indexPath)!
         let mediaViewer = MediaViewerViewController(opening: asset, dataSource: self)
         mediaViewer.mediaViewerDelegate = self
-        mediaViewer.toolbarItems = [
-            .init(image: .init(systemName: "square.and.arrow.up")),
-            .flexibleSpace(),
-            .init(image: .init(systemName: "heart")),
-            .flexibleSpace(),
-            .init(image: .init(systemName: "info.circle")),
-            .flexibleSpace(),
-            mediaViewer.trashButton { mediaViewer, button, currentAsset in
-                try? await self.showConfirmationForPhotoRemoval(
-                    from: button,
-                    on: mediaViewer,
-                    removingAsset: currentAsset
-                )
-            }
-        ]
         navigationController?.delegate = mediaViewer
         navigationController?.pushViewController(mediaViewer, animated: true)
     }
@@ -247,21 +232,6 @@ extension AsyncImagesViewController: MediaViewerDataSource {
         let size = PHImageFetcher.imageSize(of: mediaIdentifier)
         guard let size, size.height > 0 else { return nil }
         return size.width / size.height
-    }
-    
-    func mediaViewer(
-        _ mediaViewer: MediaViewerViewController,
-        pageThumbnailForMediaWith mediaIdentifier: PHAsset,
-        filling preferredThumbnailSize: CGSize
-    ) -> Source<UIImage?> {
-        .async(transition: .fade(duration: 0.1)) {
-            await PHImageFetcher.image(
-                for: mediaIdentifier,
-                targetSize: preferredThumbnailSize,
-                contentMode: .aspectFill,
-                resizeMode: .fast
-            )
-        }
     }
     
     func mediaViewer(

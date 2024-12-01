@@ -107,9 +107,6 @@ open class MediaViewerViewController: UIPageViewController {
     // NOTE: This is required for transition.
     private let backgroundView = UIView()
     
-    let pageControlToolbar = UIToolbar()
-    private let pageControlBar = MediaViewerPageControlBar()
-    
     private let panRecognizer: UIPanGestureRecognizer = {
         let recognizer = UIPanGestureRecognizer()
         recognizer.maximumNumberOfTouches = 1
@@ -124,34 +121,12 @@ open class MediaViewerViewController: UIPageViewController {
         }
     }
     
-    // MARK: Layout constraints
-    
-    private lazy var expandedPageControlToolbarConstraints = [
-        pageControlBar.topAnchor.constraint(
-            equalTo: pageControlToolbar.topAnchor,
-            constant: 1
-        ),
-        pageControlToolbar.heightAnchor.constraint(
-            equalToConstant: pageControlToolbar.systemLayoutSizeFitting(
-                UIView.layoutFittingCompressedSize
-            ).height
-        )
-    ]
-    
-    // NOTE: Activated during the screen transition.
-    private lazy var collapsedPageControlToolbarConstraints = [
-        pageControlToolbar.heightAnchor.constraint(equalToConstant: 0)
-    ]
-    
     // MARK: Backups
     
     private(set) var tabBarHiddenBackup: Bool?
     private(set) var navigationBarHiddenBackup = false
     private(set) var navigationBarAlphaBackup = 1.0
-    private(set) var toolbarHiddenBackup = true
-    private(set) var toolbarAlphaBackup = 1.0
-    private(set) var toolbarScrollEdgeAppearanceBackup: UIToolbarAppearance?
-    
+
     // MARK: - Initializers
     
     /// Creates a new viewer.
@@ -200,8 +175,7 @@ open class MediaViewerViewController: UIPageViewController {
         
         dataSource = self
         delegate = self
-        pageControlBar.dataSource = self
-        
+
         guard let navigationController else {
             preconditionFailure(
                 "\(Self.self) must be embedded in UINavigationController."
@@ -211,14 +185,6 @@ open class MediaViewerViewController: UIPageViewController {
         tabBarHiddenBackup = tabBarController?.tabBar.isHidden
         navigationBarHiddenBackup = navigationController.isNavigationBarHidden
         navigationBarAlphaBackup = navigationController.navigationBar.alpha
-        
-        /*
-         [Workaround]
-         isToolbarHidden returns an incorrect value when the toolbar was
-         displayed on a previous screen embedded in UITabBarController.
-         */
-        toolbarHiddenBackup = navigationController.isToolbarHidden
-        toolbarAlphaBackup = navigationController.toolbar.alpha
         
         setUpViews()
         setUpGestureRecognizers()
@@ -245,32 +211,15 @@ open class MediaViewerViewController: UIPageViewController {
         // Subviews
         configureBackground(showingMediaOnly: false)
         view.insertSubview(backgroundView, at: 0)
-        view.addSubview(pageControlToolbar)
-        
-        pageControlBar.configure(
-            mediaIdentifiers: mediaViewerVM.mediaIdentifiers,
-            currentIdentifier: currentMediaIdentifier
-        )
-        pageControlToolbar.addSubview(pageControlBar)
-        
+
         // Layout
         backgroundView.translatesAutoresizingMaskIntoConstraints = false
-        pageControlToolbar.translatesAutoresizingMaskIntoConstraints = false
-        pageControlBar.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             backgroundView.topAnchor.constraint(equalTo: view.topAnchor),
             backgroundView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             backgroundView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             backgroundView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            
-            pageControlToolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            pageControlToolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            pageControlToolbar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            
-            pageControlBar.leadingAnchor.constraint(equalTo: pageControlToolbar.leadingAnchor),
-            pageControlBar.trailingAnchor.constraint(equalTo: pageControlToolbar.trailingAnchor),
-            pageControlBar.bottomAnchor.constraint(equalTo: pageControlToolbar.bottomAnchor, constant: -1),
-        ] + expandedPageControlToolbarConstraints)
+        ])
     }
     
     private func setUpGestureRecognizers() {
@@ -292,20 +241,16 @@ open class MediaViewerViewController: UIPageViewController {
                 ) {
                     self.tabBarController?.tabBar.isHidden = showsMediaOnly || self.hidesBottomBarWhenPushed
                     navigationController.navigationBar.alpha = showsMediaOnly ? 0 : 1
-                    navigationController.toolbar.alpha = showsMediaOnly ? 0 : 1
                     self.configureBackground(showingMediaOnly: showsMediaOnly)
-                    self.pageControlToolbar.isHidden = showsMediaOnly
                 }
                 if showsMediaOnly {
                     animator.addCompletion { position in
                         if position == .end {
                             navigationController.isNavigationBarHidden = true
-                            navigationController.isToolbarHidden = true
                         }
                     }
                 } else {
                     navigationController.isNavigationBarHidden = false
-                    navigationController.isToolbarHidden = false
                 }
                 
                 // Ignore single tap during animation
@@ -316,28 +261,6 @@ open class MediaViewerViewController: UIPageViewController {
                 }
                 
                 animator.startAnimation()
-            }
-            .store(in: &cancellables)
-        
-        pageControlBar.pageDidChange
-            .sink { [weak self] page, reason in
-                guard let self else { return }
-                switch reason {
-                case .tapOnPageThumbnail, .scrollingBar:
-                    let identifier = mediaViewerVM.mediaIdentifier(forPage: page)!
-                    move(toMediaWith: identifier, animated: false)
-                case .configuration, .load, .interactivePaging:
-                    // Do nothing because it has already been moved to the page.
-                    break
-                }
-            }
-            .store(in: &cancellables)
-        
-        scrollView.publisher(for: \.contentOffset)
-            .removeDuplicates()
-            .dropFirst(2) // Useless changes
-            .sink { [weak self] _ in
-                self?.handleContentOffsetChange()
             }
             .store(in: &cancellables)
     }
@@ -354,9 +277,6 @@ open class MediaViewerViewController: UIPageViewController {
         if !mediaViewerVM.showsMediaOnly {
             if navigationController.isNavigationBarHidden {
                 navigationController.setNavigationBarHidden(false, animated: animated)
-            }
-            if navigationController.isToolbarHidden {
-                navigationController.setToolbarHidden(false, animated: animated)
             }
         }
     }
@@ -485,148 +405,6 @@ open class MediaViewerViewController: UIPageViewController {
         )
     }
     
-    private var runningReloadTransactionIDs: Set<UUID> = []
-    
-    /// Reloads media.
-    ///
-    /// Updates the UI to reflect the state of the data source, optionally animating the UI changes.
-    /// You need to call this method Immediately after `mediaIdentifiers(for:)` provided by
-    /// your `MediaViewerDataSource` changes.
-    ///
-    /// - Parameter animated: Whether to animate the reloading.
-    open func reloadMedia(animated: Bool) async {
-        let newIdentifiers = fetchMediaIdentifiers()
-        let currentIdentifiers = mediaViewerVM.mediaIdentifiers
-        guard newIdentifiers != currentIdentifiers else { return }
-        
-        let deletingIdentifiers = currentIdentifiers.subtracting(
-            newIdentifiers
-        )
-        
-        let visibleVCBeforeReloading = currentPageViewController
-        
-        let pagingAfterReloading = mediaViewerVM.paging(
-            afterDeleting: deletingIdentifiers,
-            currentIdentifier: visibleVCBeforeReloading.mediaIdentifier
-        )
-        if let pagingAfterReloading {
-            destinationPageVCAfterReloading = makeMediaViewerPage(
-                with: pagingAfterReloading.destinationIdentifier
-            )
-        }
-        
-        mediaViewerVM.mediaIdentifiers = newIdentifiers
-        
-        let transactionID = UUID()
-        runningReloadTransactionIDs.insert(transactionID)
-        
-        await pageControlBar.startReloading()
-        
-        await reloadMedia(
-            deleting: deletingIdentifiers,
-            visibleVCBeforeReloading: visibleVCBeforeReloading,
-            pagingAfterReloading: pagingAfterReloading,
-            animated: animated
-        )
-        
-        runningReloadTransactionIDs.remove(transactionID)
-        if runningReloadTransactionIDs.isEmpty {
-            destinationPageVCAfterReloading = nil
-            pageControlBar.finishReloading()
-        }
-        
-        assert(mediaViewerVM.mediaIdentifiers == fetchMediaIdentifiers())
-    }
-    
-    private func reloadMedia(
-        deleting deletedIdentifiers: some Sequence<AnyMediaIdentifier>,
-        visibleVCBeforeReloading: MediaViewerOnePageViewController,
-        pagingAfterReloading: MediaViewerViewModel.PagingAfterReloading?,
-        animated: Bool
-    ) async {
-        let isVisibleMediaDeleted = deletedIdentifiers.contains(
-            visibleVCBeforeReloading.mediaIdentifier
-        )
-        let visiblePageView = visibleVCBeforeReloading.mediaViewerOnePageView
-        
-        // MARK: Perform vanish animation
-        
-        let vanishAnimator: UIViewPropertyAnimator?
-        if animated {
-            /*
-             NOTE:
-             Play an effect that causes media to disappear.
-             This animation will not run if there is no deletion.
-             */
-            vanishAnimator = UIViewPropertyAnimator(duration: 0.2, curve: .easeOut) {
-                if isVisibleMediaDeleted {
-                    visiblePageView.performVanishAnimationBody()
-                }
-                self.pageControlBar.performVanishAnimationBody(
-                    for: deletedIdentifiers
-                )
-            }
-        } else {
-            // Skip vanish animation
-            vanishAnimator = nil
-        }
-        vanishAnimator?.startAnimation()
-        
-        // If all media is deleted, close the viewer
-        guard let pagingAfterReloading else {
-            assert(mediaViewerVM.mediaIdentifiers.isEmpty)
-            navigationController?.popViewController(animated: true)
-            return
-        }
-        
-        await vanishAnimator?.addCompletion()
-        
-        // MARK: Finalize reloading
-        
-        guard let destination = destinationPageVCAfterReloading else {
-            assertionFailure(
-                "destinationPageVCAfterReloading should not be nil until all reloading transactions have completed."
-            )
-            return
-        }
-        
-        guard pagingAfterReloading.destinationIdentifier == destination.mediaIdentifier else {
-            /*
-             NOTE:
-             Do not run finishAnimator because another reloading will follow.
-             */
-            return
-        }
-        
-        func finalizeReloading() {
-            pageControlBar.loadItems(
-                mediaViewerVM.mediaIdentifiers,
-                expandingItemWith: destination.mediaIdentifier,
-                animated: animated
-            )
-            
-            if let direction = pagingAfterReloading.direction {
-                move(
-                    to: destination,
-                    direction: direction,
-                    animated: animated
-                )
-            }
-        }
-        
-        if animated {
-            let finishAnimator = UIViewPropertyAnimator(
-                duration: 0.3,
-                dampingRatio: 1,
-                animations: finalizeReloading
-            )
-            finishAnimator.startAnimation()
-            await finishAnimator.addCompletion()
-        } else {
-            finalizeReloading()
-        }
-    }
-    
     private func pageDidChange() {
         mediaViewerDelegate?.mediaViewer(
             self,
@@ -638,53 +416,18 @@ open class MediaViewerViewController: UIPageViewController {
         backgroundView.backgroundColor = showingMediaOnly ? .black : .systemBackground
     }
     
-    private func handleContentOffsetChange() {
-        // Update layout of the page control bar interactively.
-        let action = mediaViewerVM.pageControlBarInteractivePagingAction(
-            on: pageControlBar.state,
-            scrollOffsetX: scrollView.contentOffset.x,
-            scrollAreaWidth: scrollView.bounds.width
-        )
-        switch action {
-        case .start(let forwards):
-            pageControlBar.startInteractivePaging(forwards: forwards)
-        case .update(let progress):
-            pageControlBar.updatePagingProgress(progress)
-        case .finish:
-            pageControlBar.finishInteractivePaging()
-        case .cancel:
-            pageControlBar.cancelInteractivePaging()
-        case nil:
-            break
-        }
-    }
-    
     // MARK: - Actions
-    
-    private var canTransitionWithSourceView: Bool {
-        switch pageControlBar.state {
-        case .collapsing, .collapsed, .expanding, .expanded, .transitioningInteractively:
-            return true
-        case .reloading:
-            /*
-             FIXME: A transition with the source view does not work correctly during reloading
-             */
-            return false
-        }
-    }
-    
+
     @objc
     private func panned(recognizer: UIPanGestureRecognizer) {
         if recognizer.state == .began {
             // Start the interactive pop transition
-            if canTransitionWithSourceView {
-                let sourceView = mediaViewerDataSource.mediaViewer(
-                    self,
-                    transitionSourceViewForMediaWith: currentMediaIdentifier
-                )
-                interactivePopTransition = .init(sourceView: sourceView)
-            }
-            
+            let sourceView = mediaViewerDataSource.mediaViewer(
+                self,
+                transitionSourceViewForMediaWith: currentMediaIdentifier
+            )
+            interactivePopTransition = .init(sourceView: sourceView)
+
             /*
              [Workaround]
              If the recognizer detects a gesture while the main thread is blocked,
@@ -803,33 +546,6 @@ extension MediaViewerViewController: UIPageViewControllerDataSource {
     }
 }
 
-// MARK: - MediaViewerPageControlBarDataSource -
-
-extension MediaViewerViewController: MediaViewerPageControlBarDataSource {
-    
-    func mediaViewerPageControlBar(
-        _ pageControlBar: MediaViewerPageControlBar,
-        thumbnailWith mediaIdentifier: AnyMediaIdentifier,
-        filling preferredThumbnailSize: CGSize
-    ) -> Source<UIImage?> {
-        mediaViewerDataSource.mediaViewer(
-            self,
-            pageThumbnailForMediaWith: mediaIdentifier,
-            filling: preferredThumbnailSize
-        )
-    }
-    
-    func mediaViewerPageControlBar(
-        _ pageControlBar: MediaViewerPageControlBar,
-        widthToHeightOfThumbnailWith mediaIdentifier: AnyMediaIdentifier
-    ) -> CGFloat? {
-        mediaViewerDataSource.mediaViewer(
-            self,
-            widthToHeightOfMediaWith: mediaIdentifier
-        )
-    }
-}
-
 // MARK: - UIPageViewControllerDelegate -
 
 extension MediaViewerViewController: UIPageViewControllerDelegate {
@@ -874,14 +590,10 @@ extension MediaViewerViewController: UINavigationControllerDelegate {
         }
         
         let sourceView: UIView?
-        if canTransitionWithSourceView {
-            sourceView = interactivePopTransition?.sourceView ?? mediaViewerDataSource.mediaViewer(
-                self,
-                transitionSourceViewForMediaWith: currentMediaIdentifier
-            )
-        } else {
-            sourceView = nil
-        }
+        sourceView = interactivePopTransition?.sourceView ?? mediaViewerDataSource.mediaViewer(
+            self,
+            transitionSourceViewForMediaWith: currentMediaIdentifier
+        )
         return MediaViewerTransition(
             operation: operation,
             sourceView: sourceView,
@@ -936,8 +648,6 @@ extension MediaViewerViewController: UIGestureRecognizerDelegate {
                     pagingRecognizer.state = .failed
                     return true
                 }
-            case is MediaViewerOnePageView, is MediaViewerPageControlBar:
-                return false
             default:
                 assertionFailure(
                     "Unknown pan gesture recognizer: \(otherGestureRecognizer)"
@@ -957,75 +667,13 @@ extension MediaViewerViewController {
     var subviewsToFadeDuringTransition: [UIView] {
         view.subviews
             .filter {
-                $0 != pageControlToolbar
-                && $0 != currentPageViewController.mediaViewerOnePageView.imageView
+                $0 != currentPageViewController.mediaViewerOnePageView.imageView
             }
-        + [pageControlBar]
     }
     
     /// Insert an animated image view for the transition.
     /// - Parameter animatedImageView: An animated image view during the transition.
     func insertImageViewForTransition(_ animatedImageView: UIImageView) {
-        view.insertSubview(animatedImageView, belowSubview: pageControlToolbar)
-    }
-    
-    private func prepareToolbarsForTransition() {
-        // Clip pageControlBar
-        pageControlToolbar.clipsToBounds = true
-        
-        /*
-         [Workaround]
-         When pageControlToolbar.clipsToBounds is true,
-         toolbar becomes transparent so prevent it.
-         */
-        let toolbar = navigationController!.toolbar!
-        toolbarScrollEdgeAppearanceBackup = toolbar.scrollEdgeAppearance
-        let appearance = UIToolbarAppearance()
-        appearance.configureWithDefaultBackground()
-        toolbar.scrollEdgeAppearance = appearance
-    }
-    
-    // MARK: Push transition
-    
-    func willStartPushTransition() {
-        prepareToolbarsForTransition()
-        
-        NSLayoutConstraint.deactivate(expandedPageControlToolbarConstraints)
-        NSLayoutConstraint.activate(collapsedPageControlToolbarConstraints)
-        view.layoutIfNeeded()
-        NSLayoutConstraint.deactivate(collapsedPageControlToolbarConstraints)
-        NSLayoutConstraint.activate(expandedPageControlToolbarConstraints)
-    }
-    
-    func didFinishPushTransition() {
-        pageControlToolbar.clipsToBounds = false
-        navigationController!.toolbar.scrollEdgeAppearance = toolbarScrollEdgeAppearanceBackup
-    }
-    
-    // MARK: Pop transition
-    
-    func willStartPopTransition() {
-        prepareToolbarsForTransition()
-        
-        NSLayoutConstraint.deactivate(expandedPageControlToolbarConstraints)
-        NSLayoutConstraint.activate(collapsedPageControlToolbarConstraints)
-    }
-    
-    // MARK: Interactive pop transition
-    
-    func willStartInteractivePopTransition() {
-        prepareToolbarsForTransition()
-        NSLayoutConstraint.deactivate(expandedPageControlToolbarConstraints)
-    }
-    
-    func didCancelInteractivePopTransition() {
-        pageControlToolbar.clipsToBounds = false
-        /*
-         NOTE:
-         Restore toolbar.scrollEdgeAppearance in MediaViewerInteractivePopTransition
-         because navigationController has become nil.
-         */
-        
-        NSLayoutConstraint.activate(expandedPageControlToolbarConstraints)
+      view.addSubview(animatedImageView)
     }
 }

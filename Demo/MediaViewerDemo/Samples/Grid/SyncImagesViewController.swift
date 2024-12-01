@@ -157,69 +157,8 @@ extension SyncImagesViewController: UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         let image = dataSource.itemIdentifier(for: indexPath)!
         let mediaViewer = MediaViewerViewController(opening: image, dataSource: self)
-        setUpToolbarItems(of: mediaViewer)
         navigationController?.delegate = mediaViewer
         navigationController?.pushViewController(mediaViewer, animated: true)
-    }
-    
-    /*
-     * NOTE:
-     * Here the instance of MediaViewerViewController is customized directly,
-     * but you can subclass MediaViewerViewController instead.
-     */
-    private func setUpToolbarItems(of mediaViewer: MediaViewerViewController) {
-        // NOTE: `weak mediaViewer` captures are needed.
-        mediaViewer.toolbarItems = [
-            .init(
-                systemItem: .refresh,
-                primaryAction: .init { [weak mediaViewer] _ in
-                    guard let mediaViewer else { return }
-                    self.refresh()
-                    Task {
-                        await mediaViewer.reloadMedia(animated: true)
-                    }
-                }
-            ),
-            .flexibleSpace(),
-            .init(
-                systemItem: .add,
-                primaryAction: .init { [weak mediaViewer] _ in
-                    guard let mediaViewer else { return }
-                    self.insertNewItem(
-                        after: mediaViewer.currentMediaIdentifier()
-                    )
-                    Task {
-                        await mediaViewer.reloadMedia(animated: true)
-                    }
-                }
-            ),
-            .flexibleSpace(),
-            .init(
-                image: .init(systemName: "arrowshape.turn.up.right"),
-                primaryAction: .init { [weak mediaViewer] _ in
-                    guard let mediaViewer else { return }
-                    self.moveItemToNext(mediaViewer.currentMediaIdentifier())
-                    Task {
-                        await mediaViewer.reloadMedia(animated: true)
-                    }
-                }
-            ),
-            .flexibleSpace(),
-            .init(
-                image: .init(systemName: "shuffle"),
-                primaryAction: .init { [weak mediaViewer] _ in
-                    guard let mediaViewer else { return }
-                    self.shuffleItems()
-                    Task {
-                        await mediaViewer.reloadMedia(animated: true)
-                    }
-                }
-            ),
-            .flexibleSpace(),
-            mediaViewer.trashButton { _, _, currentMediaIdentifier in
-                self.removeItem(currentMediaIdentifier)
-            }
-        ]
     }
 }
 
