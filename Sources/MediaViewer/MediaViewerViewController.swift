@@ -388,11 +388,22 @@ open class MediaViewerViewController: UIPageViewController {
             tabBar.isHidden = tabBarHiddenBackup
         }
         navigationController.navigationBar.alpha = navigationBarAlphaBackup
-        navigationController.setNavigationBarHidden(
-            navigationBarHiddenBackup,
-            animated: animated
-        )
-        
+
+        /*
+         [Workaround]
+         Can't use navigationController.setNavigationBarHidden because when
+         navigationBarHiddenBackup is false and setNavigationBarHidden is
+         animated, the navigationBar's alpha value is set to 0.
+
+         To avoid this, use a crossDissolve transition.
+         */
+        UIView.transition(
+            with: navigationController.navigationBar,
+            duration: animated ? UINavigationController.hideShowBarDuration : 0,
+            options: .transitionCrossDissolve
+        ) {
+            navigationController.isNavigationBarHidden = self.navigationBarHiddenBackup
+        }
         transitionCoordinator?.animate(alongsideTransition: { _ in }) { context in
             if context.isCancelled {
                 // Cancel the appearance restoration
