@@ -10,6 +10,8 @@ import UIKit
 @MainActor
 protocol MediaViewerOnePageViewDelegate: AnyObject {
     func mediaViewerOnePageViewDidZoom(_ onePageView: MediaViewerOnePageView)
+
+    func mediaViewerPageWillBeginDragging(_ onePageView: MediaViewerOnePageView)
 }
 
 final class MediaViewerOnePageView: UIView {
@@ -250,5 +252,9 @@ extension MediaViewerOnePageView: UIScrollViewDelegate {
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
         adjustContentInset()
         delegate?.mediaViewerOnePageViewDidZoom(self)
+    }
+
+    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+      delegate?.mediaViewerPageWillBeginDragging(self)
     }
 }

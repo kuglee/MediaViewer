@@ -739,6 +739,10 @@ extension MediaViewerViewController: MediaViewerOnePageViewControllerDelegate {
         }
         mediaViewerVM.showsMediaOnly = true
     }
+
+    func mediaViewerPageWillBeginDragging(_ mediaViewerPage: MediaViewerOnePageViewController) {
+      mediaViewerVM.showsMediaOnly = true
+    }
 }
 
 // MARK: - UIPageViewControllerDataSource -

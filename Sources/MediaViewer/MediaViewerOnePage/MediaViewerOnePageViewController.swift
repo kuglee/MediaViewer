@@ -14,6 +14,10 @@ protocol MediaViewerOnePageViewControllerDelegate: AnyObject {
     func mediaViewerPageDidZoom(
         _ mediaViewerPage: MediaViewerOnePageViewController
     )
+
+    func mediaViewerPageWillBeginDragging(
+        _ mediaViewerPage: MediaViewerOnePageViewController
+    )
 }
 
 final class MediaViewerOnePageViewController: UIViewController {
@@ -103,5 +107,9 @@ extension MediaViewerOnePageViewController: MediaViewerOnePageViewDelegate {
     
     func mediaViewerOnePageViewDidZoom(_ onePageView: MediaViewerOnePageView) {
         delegate?.mediaViewerPageDidZoom(self)
+    }
+
+    func mediaViewerPageWillBeginDragging(_ onePageView: MediaViewerOnePageView) {
+        delegate?.mediaViewerPageWillBeginDragging(self)
     }
 }
