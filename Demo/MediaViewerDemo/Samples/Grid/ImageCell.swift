@@ -29,6 +29,7 @@ final class ImageCell: UICollectionViewCell {
     
     private func setUpViews() {
         clipsToBounds = true
+        layer.cornerRadius = 16
         
         // Subviews
         contentView.addSubview(imageView)
@@ -36,7 +37,6 @@ final class ImageCell: UICollectionViewCell {
         // Layout
         imageView.autoLayout { item in
             item.edges.equalToSuperview()
-            item.width.equal(to: item.height)
         }
     }
     

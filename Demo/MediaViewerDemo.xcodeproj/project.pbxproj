@@ -22,6 +22,8 @@
 		5A88B3882AF50B9600B65BCD /* MediaViewer in Frameworks */ = {isa = PBXBuildFile; productRef = 5A88B3872AF50B9600B65BCD /* MediaViewer */; };
 		5AC3B5552AF60DAE00A028FC /* ImageFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AC3B5542AF60DAE00A028FC /* ImageFactory.swift */; };
 		5AE4F46E29D31E7A0048E8B4 /* TabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AE4F46D29D31E7A0048E8B4 /* TabBarController.swift */; };
+		5D5C8B5E2D0043BC008EFF85 /* NukeImagesViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D5C8B5D2D0043BC008EFF85 /* NukeImagesViewController.swift */; };
+		5D5C8B692D004836008EFF85 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = 5D5C8B682D004836008EFF85 /* Nuke */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,6 +44,7 @@
 		5A54614A29A25CDF00F16456 /* ImageCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCell.swift; sourceTree = "<group>"; };
 		5AC3B5542AF60DAE00A028FC /* ImageFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageFactory.swift; sourceTree = "<group>"; };
 		5AE4F46D29D31E7A0048E8B4 /* TabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarController.swift; sourceTree = "<group>"; };
+		5D5C8B5D2D0043BC008EFF85 /* NukeImagesViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NukeImagesViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -49,6 +52,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5D5C8B692D004836008EFF85 /* Nuke in Frameworks */,
 				5A54614929A25BCD00F16456 /* AceLayout in Frameworks */,
 				5A88B3882AF50B9600B65BCD /* MediaViewer in Frameworks */,
 			);
@@ -73,6 +77,7 @@
 				5A54614229A25A8900F16456 /* AsyncImagesViewController.swift */,
 				5A09B7A929B47C670042E3F1 /* ImageGridView.swift */,
 				5A54614A29A25CDF00F16456 /* ImageCell.swift */,
+				5D5C8B5D2D0043BC008EFF85 /* NukeImagesViewController.swift */,
 			);
 			path = Grid;
 			sourceTree = "<group>";
@@ -163,6 +168,7 @@
 			packageProductDependencies = (
 				5A54614829A25BCD00F16456 /* AceLayout */,
 				5A88B3872AF50B9600B65BCD /* MediaViewer */,
+				5D5C8B682D004836008EFF85 /* Nuke */,
 			);
 			productName = MediaViewerDemo;
 			productReference = 5A54612629A2594700F16456 /* MediaViewerDemo.app */;
@@ -194,6 +200,7 @@
 			mainGroup = 5A54611D29A2594700F16456;
 			packageReferences = (
 				5A54614729A25BCD00F16456 /* XCRemoteSwiftPackageReference "AceLayout" */,
+				5D5C8B672D004836008EFF85 /* XCRemoteSwiftPackageReference "Nuke" */,
 			);
 			productRefGroup = 5A54612729A2594700F16456 /* Products */;
 			projectDirPath = "";
@@ -222,6 +229,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5AC3B5552AF60DAE00A028FC /* ImageFactory.swift in Sources */,
+				5D5C8B5E2D0043BC008EFF85 /* NukeImagesViewController.swift in Sources */,
 				5A09B7AA29B47C670042E3F1 /* ImageGridView.swift in Sources */,
 				5A09B7AC29B47F330042E3F1 /* SyncImagesViewController.swift in Sources */,
 				5A54614B29A25CDF00F16456 /* ImageCell.swift in Sources */,
@@ -463,6 +471,14 @@
 				minimumVersion = 1.0.0;
 			};
 		};
+		5D5C8B672D004836008EFF85 /* XCRemoteSwiftPackageReference "Nuke" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kean/Nuke";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.8.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -474,6 +490,11 @@
 		5A88B3872AF50B9600B65BCD /* MediaViewer */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MediaViewer;
+		};
+		5D5C8B682D004836008EFF85 /* Nuke */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5D5C8B672D004836008EFF85 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = Nuke;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

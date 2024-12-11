@@ -9,19 +9,24 @@ import UIKit
 import AceLayout
 
 final class ImageGridView: UIView {
-    
-    let collectionView: UICollectionView = {
+    var firstImageAspectRatio: CGFloat = 1.0 {
+        didSet {
+            collectionView.collectionViewLayout.invalidateLayout()
+        }
+    }
+
+    lazy var collectionView: UICollectionView = {
         let layout = UICollectionViewCompositionalLayout { _, layoutEnvironment in
             let minimumItemWidth: CGFloat
             let itemSpacing: CGFloat
             let contentInsetsReference: UIContentInsetsReference
             switch layoutEnvironment.traitCollection.horizontalSizeClass {
             case .unspecified, .compact:
-                minimumItemWidth = 130
-                itemSpacing = 2
+                minimumItemWidth = 80
+                itemSpacing = 4
                 contentInsetsReference = .automatic
             case .regular:
-                minimumItemWidth = 160
+                minimumItemWidth = 100
                 itemSpacing = 16
                 contentInsetsReference = .layoutMargins
             @unknown default:
@@ -32,20 +37,44 @@ final class ImageGridView: UIView {
             let columnCount = Int(effectiveFullWidth / minimumItemWidth)
             let totalSpacing = itemSpacing * CGFloat(columnCount - 1)
             let estimatedItemWidth = (effectiveFullWidth - totalSpacing) / CGFloat(columnCount)
-            let group = NSCollectionLayoutGroup.horizontal(
+
+            let firstImageHeight = effectiveFullWidth / self.firstImageAspectRatio
+
+            let largeGroup = NSCollectionLayoutGroup.horizontal(
                 layoutSize: .init(
                     widthDimension: .fractionalWidth(1),
-                    heightDimension: .estimated(estimatedItemWidth)
+                    heightDimension: .absolute(firstImageHeight)
+                ),
+                repeatingSubitem: .init(layoutSize: .init(
+                    widthDimension: .fractionalWidth(1),
+                    heightDimension: .absolute(firstImageHeight)
+                )),
+                count: 1
+            )
+
+            let gridGroup = NSCollectionLayoutGroup.horizontal(
+                layoutSize: .init(
+                    widthDimension: .fractionalWidth(1),
+                    heightDimension: .fractionalWidth(1)
                 ),
                 repeatingSubitem: .init(layoutSize: .init(
                     widthDimension: .fractionalWidth(1 / CGFloat(columnCount)),
-                    heightDimension: .estimated(estimatedItemWidth)
+                    heightDimension: .fractionalWidth(1 / CGFloat(columnCount))
                 )),
                 count: columnCount
             )
-            group.interItemSpacing = .fixed(itemSpacing)
+            gridGroup.interItemSpacing = .fixed(itemSpacing)
+
+            let combinedGroup = NSCollectionLayoutGroup.vertical(
+                layoutSize: .init(
+                    widthDimension: .fractionalWidth(1),
+                    heightDimension: .estimated(estimatedItemWidth * CGFloat(columnCount) + estimatedItemWidth * 0.5)
+                ),
+                subitems: [largeGroup, gridGroup]
+            )
+            combinedGroup.interItemSpacing = .fixed(itemSpacing)
             
-            let section = NSCollectionLayoutSection(group: group)
+            let section = NSCollectionLayoutSection(group: combinedGroup)
             section.interGroupSpacing = itemSpacing
             section.contentInsetsReference = contentInsetsReference
             return section
