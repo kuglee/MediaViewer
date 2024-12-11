@@ -85,7 +85,7 @@ final class NukeImagesViewController: UIViewController {
 extension NukeImagesViewController: UICollectionViewDelegate {
   func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
     let asset = dataSource.itemIdentifier(for: indexPath)!
-    let mediaViewer = MediaViewerViewController(opening: asset, dataSource: self)
+    let mediaViewer = MediaViewerViewControllerWithCloseButton(opening: asset, dataSource: self)
     mediaViewer.mediaViewerDelegate = self
 
     navigationController?.delegate = mediaViewer
@@ -186,5 +186,18 @@ extension ImageCell {
         callback(firstImageAspectRatio)
       }
     }
+  }
+}
+
+class MediaViewerViewControllerWithCloseButton: MediaViewerViewController {
+  override func viewDidLoad() {
+    super.viewDidLoad()
+
+    let image = UIImage(systemName: "xmark.circle.fill")!
+    navigationItem.scrollEdgeAppearance!.setBackIndicatorImage(image, transitionMaskImage: image)
+    navigationItem.standardAppearance = navigationItem.scrollEdgeAppearance
+    navigationItem.compactAppearance = navigationItem.scrollEdgeAppearance
+    navigationItem.style = .editor // hides back button title
+    navigationController?.navigationBar.tintColor = .label
   }
 }

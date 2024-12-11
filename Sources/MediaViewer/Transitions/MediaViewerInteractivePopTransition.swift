@@ -29,13 +29,16 @@ final class MediaViewerInteractivePopTransition: NSObject {
     private var initialZoomScale: CGFloat = 1
     private var initialImageTransform = CGAffineTransform.identity
     private var initialImageFrameInViewer = CGRect.null
-    
+    private var sourceNavigationBarTintColor: UIColor?
+    private var navigationBarTintColorBackup: UIColor? = nil
+
     private var didPrepare = false
     
     // MARK: - Initializers
     
-    init(sourceView: UIView?) {
+    init(sourceView: UIView?, sourceNavigationBarTintColor: UIColor? = nil) {
         self.sourceView = sourceView
+        self.sourceNavigationBarTintColor = sourceNavigationBarTintColor
         super.init()
     }
 }
@@ -95,6 +98,7 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         sourceViewHiddenBackup = sourceView?.isHidden ?? false
         tabBarScrollEdgeAppearanceBackup = tabBar?.scrollEdgeAppearance
         tabBarAlphaBackup = tabBar?.alpha
+        navigationBarTintColorBackup = toVC.navigationController?.navigationBar.tintColor
 
         // MARK: Prepare for the transition
         
@@ -135,6 +139,8 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
                 view.alpha = 0
             }
         }
+
+        toVC.navigationController?.navigationBar.tintColor = sourceNavigationBarTintColor
     }
     
     private func finishInteractiveTransition() {
@@ -178,6 +184,7 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
             // Restore properties
             self.sourceView?.isHidden = self.sourceViewHiddenBackup
             navigationBar.alpha = mediaViewer.navigationBarAlphaBackup
+            navigationController.navigationBar.tintColor = self.navigationBarTintColorBackup
 
             /*
              [Workaround]

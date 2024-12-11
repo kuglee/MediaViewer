@@ -426,7 +426,10 @@ open class MediaViewerViewController: UIPageViewController {
                 self,
                 transitionSourceViewForMediaWith: currentMediaIdentifier
             )
-            interactivePopTransition = .init(sourceView: sourceView)
+            interactivePopTransition = .init(
+              sourceView: sourceView,
+              sourceNavigationBarTintColor: navigationController?.navigationBar.tintColor
+            )
 
             /*
              [Workaround]
@@ -585,6 +588,7 @@ extension MediaViewerViewController: UINavigationControllerDelegate {
             return MediaViewerTransition(
                 operation: operation,
                 sourceView: nil,
+                sourceNavigationBarTintColor: navigationController.navigationBar.tintColor,
                 sourceImage: { nil }
             )
         }
@@ -597,6 +601,7 @@ extension MediaViewerViewController: UINavigationControllerDelegate {
         return MediaViewerTransition(
             operation: operation,
             sourceView: sourceView,
+            sourceNavigationBarTintColor: navigationController.navigationBar.tintColor,
             sourceImage: { [weak self] in
                 guard let self else { return nil }
                 return mediaViewerDataSource.mediaViewer(

@@ -13,17 +13,20 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
     private let operation: UINavigationController.Operation
     private let sourceView: UIView?
     private let sourceImage: () -> UIImage?
+    private let sourceNavigationBarTintColor: UIColor?
     
     // MARK: - Initializers
     
     init(
         operation: UINavigationController.Operation,
         sourceView: UIView?,
+        sourceNavigationBarTintColor: UIColor? = nil,
         sourceImage: @escaping () -> UIImage?
     ) {
         self.operation = operation
         self.sourceView = sourceView
         self.sourceImage = sourceImage
+        self.sourceNavigationBarTintColor = sourceNavigationBarTintColor
     }
     
     // MARK: - Methods
@@ -288,6 +291,9 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
             }
         }
         
+        let navigationBarTintColorBackup = toVC.navigationController?.navigationBar.tintColor
+        toVC.navigationController?.navigationBar.tintColor = sourceNavigationBarTintColor
+
         animator.addCompletion { position in
             defer { transitionContext.completeTransition() }
             switch position {
@@ -296,6 +302,7 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
                 
                 // Restore properties
                 self.sourceView?.isHidden = sourceViewHiddenBackup
+                toVC.navigationController?.navigationBar.tintColor = navigationBarTintColorBackup
             case .start, .current:
                 assertionFailure("Unexpected position: \(position)")
             @unknown default:

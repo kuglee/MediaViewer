@@ -66,6 +66,8 @@ public struct SwiftUIApp: App {
     WindowGroup {
       NavigationStack {
         Test(remoteImages: self.remoteImages)
+          .navigationTitle("Test")
+          .navigationBarTitleDisplayMode(.inline)
       }
     }
   }
