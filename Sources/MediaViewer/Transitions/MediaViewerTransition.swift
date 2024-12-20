@@ -128,27 +128,28 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         sourceView?.isHidden = true
         
         let wasTabBarHidden = mediaViewer.tabBarHiddenBackup ?? true
-        if let tabBar {
-            // Show the tabBar during the transition
-            containerView.addSubview(tabBar)
-            if !wasTabBarHidden {
-                tabBar.isHidden = false
-            }
-            
-            // Make the tabBar opaque during the transition
-            let appearance = UITabBarAppearance()
-            appearance.configureWithDefaultBackground()
-            tabBar.scrollEdgeAppearance = appearance
-            
-            // Disable the default animation applied to the tabBar
-            if mediaViewer.hidesBottomBarWhenPushed,
-               let animationKeys = tabBar.layer.animationKeys() {
-                assert(animationKeys.allSatisfy { $0.starts(with: "position") })
-                tabBar.layer.removeAllAnimations()
-            }
-        }
+//        if let tabBar {
+//            // Show the tabBar during the transition
+//            containerView.addSubview(tabBar)
+//            if !wasTabBarHidden {
+//                tabBar.isHidden = false
+//            }
+//            
+//            // Make the tabBar opaque during the transition
+//            let appearance = UITabBarAppearance()
+//            appearance.configureWithDefaultBackground()
+//            tabBar.scrollEdgeAppearance = appearance
+//            
+//            // Disable the default animation applied to the tabBar
+//            if mediaViewer.hidesBottomBarWhenPushed,
+//               let animationKeys = tabBar.layer.animationKeys() {
+//                assert(animationKeys.allSatisfy { $0.starts(with: "position") })
+//                tabBar.layer.removeAllAnimations()
+//            }
+//        }
         
         if mediaViewer.navigationBarHiddenBackup {
+            tabBar?.alpha = 0
             navigationBar.alpha = 0
         }
         
@@ -162,6 +163,7 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         // NOTE: Animate only pageControlToolbar with easeInOut curve.
         UIViewPropertyAnimator(duration: 0.25, curve: .easeInOut) {
             mediaViewerView.layoutIfNeeded()
+            tabBar?.alpha = 0
         }.startAnimation()
         
         let duration = transitionDuration(using: transitionContext)
@@ -189,9 +191,10 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
                 self.sourceView?.isHidden = sourceViewHiddenBackup
                 
                 if let tabBar {
-                    tabBar.isHidden = tabBarHiddenBackup!
-                    tabBar.scrollEdgeAppearance = tabBarScrollEdgeAppearanceBackup
-                    tabBarSuperviewBackup?.addSubview(tabBar)
+                    tabBar.isHidden = true
+//                    tabBar.isHidden = tabBarHiddenBackup!
+//                    tabBar.scrollEdgeAppearance = tabBarScrollEdgeAppearanceBackup
+//                    tabBarSuperviewBackup?.addSubview(tabBar)
                 }
             case .start, .current:
                 assertionFailure("Unexpected position: \(position)")
@@ -266,30 +269,30 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
             currentPageImageView.clipsToBounds = true // TODO: Change according to the source configuration
         }
         
-        // Customize the tabBar animation
-        if let tabBar = toVC.tabBarController?.tabBar,
-           let animationKeys = tabBar.layer.animationKeys() {
-            assert(animationKeys.allSatisfy { $0.starts(with: "position") })
-            tabBar.layer.removeAllAnimations()
-            
-            if toVC.hidesBottomBarWhenPushed {
-                // Fade out the tabBar
-                animator.addAnimations {
-                    tabBar.alpha = 0
-                }
-                animator.addCompletion { position in
-                    if position == .end {
-                        tabBar.alpha = 1 // Reset
-                    }
-                }
-            } else {
-                // Fade in the tabBar
-                tabBar.alpha = 0
-                animator.addAnimations {
-                    tabBar.alpha = 1
-                }
-            }
-        }
+//        // Customize the tabBar animation
+//        if let tabBar = toVC.tabBarController?.tabBar,
+//           let animationKeys = tabBar.layer.animationKeys() {
+//            assert(animationKeys.allSatisfy { $0.starts(with: "position") })
+//            tabBar.layer.removeAllAnimations()
+//            
+//            if toVC.hidesBottomBarWhenPushed {
+//                // Fade out the tabBar
+//                animator.addAnimations {
+//                    tabBar.alpha = 0
+//                }
+//                animator.addCompletion { position in
+//                    if position == .end {
+//                        tabBar.alpha = 1 // Reset
+//                    }
+//                }
+//            } else {
+//                // Fade in the tabBar
+//                tabBar.alpha = 0
+//                animator.addAnimations {
+//                    tabBar.alpha = 1
+//                }
+//            }
+//        }
         
         let navigationBarTintColorBackup = toVC.navigationController?.navigationBar.tintColor
         toVC.navigationController?.navigationBar.tintColor = sourceNavigationBarTintColor
