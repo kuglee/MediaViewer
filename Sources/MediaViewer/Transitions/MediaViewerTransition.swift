@@ -36,9 +36,9 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
     ) -> TimeInterval {
         switch operation {
         case .push:
-            return 0.5
+            return 0.3
         case .pop:
-            return 0.35
+            return 0.3
         case .none:
             return 0.3
         @unknown default:
@@ -167,7 +167,7 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         }.startAnimation()
         
         let duration = transitionDuration(using: transitionContext)
-        let animator = UIViewPropertyAnimator(duration: duration, dampingRatio: 0.7) {
+        let animator = UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
             navigationBar.alpha = navigationBarAlphaBackup
             for view in viewsToFadeInDuringTransition {
                 view.alpha = 1
