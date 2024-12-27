@@ -58,15 +58,7 @@ final class NukeImagesViewController: UIViewController {
   override func viewDidLoad() {
     super.viewDidLoad()
 
-    setUpViews()
-
     Task(priority: .high) { await setUpDataSource() }
-  }
-
-  private func setUpViews() {
-    // Navigation
-    navigationItem.title = "Async Sample"
-    navigationItem.backButtonDisplayMode = .minimal
   }
 
   // MARK: - Methods
@@ -85,10 +77,12 @@ final class NukeImagesViewController: UIViewController {
 extension NukeImagesViewController: UICollectionViewDelegate {
   func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
     let asset = dataSource.itemIdentifier(for: indexPath)!
-    let mediaViewer = MediaViewerViewControllerWithCloseButton(opening: asset, dataSource: self)
+    let mediaViewer = MediaViewerViewController(opening: asset, dataSource: self)
     mediaViewer.mediaViewerDelegate = self
 
-    navigationController?.delegate = mediaViewer
+    mediaViewer.modalPresentationStyle = .overFullScreen
+    mediaViewer.modalPresentationCapturesStatusBarAppearance = true
+    mediaViewer.transitioningDelegate = mediaViewer
 
     Task {
       // put the image into the cache to have it be loaded for the transition
@@ -96,7 +90,7 @@ extension NukeImagesViewController: UICollectionViewDelegate {
         _ = try? await ImagePipeline.shared.image(for: url)
       }
 
-      navigationController?.pushViewController(mediaViewer, animated: true)
+      present(mediaViewer, animated: true)
     }
   }
 }
@@ -146,15 +140,7 @@ extension NukeImagesViewController: MediaViewerDataSource {
 
 // MARK: - MediaViewerDelegate -
 
-extension NukeImagesViewController: MediaViewerDelegate {
-  func mediaViewer(
-    _ mediaViewer: MediaViewerViewController,
-    didMoveToMediaWith mediaIdentifier: RemoteImage
-  ) {
-    let indexPathForCurrentImage = dataSource.indexPath(for: mediaIdentifier)!
-    mediaViewer.title = "\(indexPathForCurrentImage.item + 1)., összesen \(indexPathForCurrentImage.count)"
-  }
-}
+extension NukeImagesViewController: MediaViewerDelegate {}
 
 public struct RemoteImage: Codable, Equatable, Sendable, Identifiable, Hashable {
   public let id: UUID
@@ -186,18 +172,5 @@ extension ImageCell {
         callback(firstImageAspectRatio)
       }
     }
-  }
-}
-
-class MediaViewerViewControllerWithCloseButton: MediaViewerViewController {
-  override func viewDidLoad() {
-    super.viewDidLoad()
-
-    let image = UIImage(systemName: "xmark.circle.fill")!
-    navigationItem.scrollEdgeAppearance!.setBackIndicatorImage(image, transitionMaskImage: image)
-    navigationItem.standardAppearance = navigationItem.scrollEdgeAppearance
-    navigationItem.compactAppearance = navigationItem.scrollEdgeAppearance
-    navigationItem.style = .editor // hides back button title
-    navigationController?.navigationBar.tintColor = .label
   }
 }

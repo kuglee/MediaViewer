@@ -175,7 +175,7 @@ extension AsyncImagesViewController: UICollectionViewDelegate {
         let asset = dataSource.itemIdentifier(for: indexPath)!
         let mediaViewer = MediaViewerViewController(opening: asset, dataSource: self)
         mediaViewer.mediaViewerDelegate = self
-        navigationController?.delegate = mediaViewer
+//        navigationController?.delegate = mediaViewer
         navigationController?.pushViewController(mediaViewer, animated: true)
     }
     

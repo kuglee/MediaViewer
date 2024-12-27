@@ -84,7 +84,7 @@ final class CameraLikeViewController: UIViewController {
             opening: lastAsset,
             dataSource: self
         )
-        navigationController?.delegate = mediaViewer
+//        navigationController?.delegate = mediaViewer
         navigationController?.pushViewController(mediaViewer, animated: true)
     }
     

@@ -10,23 +10,25 @@ import UIKit
 @MainActor
 final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioning {
     
-    private let operation: UINavigationController.Operation
+    public enum TransitionOperation {
+      case present
+      case dismiss
+    }
+    
+    private let operation: TransitionOperation
     private let sourceView: UIView?
     private let sourceImage: () -> UIImage?
-    private let sourceNavigationBarTintColor: UIColor?
     
     // MARK: - Initializers
     
     init(
-        operation: UINavigationController.Operation,
+        operation: TransitionOperation,
         sourceView: UIView?,
-        sourceNavigationBarTintColor: UIColor? = nil,
         sourceImage: @escaping () -> UIImage?
     ) {
         self.operation = operation
         self.sourceView = sourceView
         self.sourceImage = sourceImage
-        self.sourceNavigationBarTintColor = sourceNavigationBarTintColor
     }
     
     // MARK: - Methods
@@ -35,13 +37,9 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         using transitionContext: (any UIViewControllerContextTransitioning)?
     ) -> TimeInterval {
         switch operation {
-        case .push:
+        case .present:
             return 0.3
-        case .pop:
-            return 0.3
-        case .none:
-            return 0.3
-        @unknown default:
+        case .dismiss:
             return 0.3
         }
     }
@@ -50,14 +48,10 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         using transitionContext: any UIViewControllerContextTransitioning
     ) {
         switch operation {
-        case .push:
+        case .present:
             animatePushTransition(using: transitionContext)
-        case .pop:
+        case .dismiss:
             animatePopTransition(using: transitionContext)
-        case .none:
-            fatalError("Not implemented.")
-        @unknown default:
-            fatalError("Not implemented.")
         }
     }
     
@@ -65,8 +59,7 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         using transitionContext: some UIViewControllerContextTransitioning
     ) {
         guard let mediaViewer = transitionContext.viewController(forKey: .to) as? MediaViewerViewController,
-              let mediaViewerView = transitionContext.view(forKey: .to),
-              let navigationController = mediaViewer.navigationController
+              let mediaViewerView = transitionContext.view(forKey: .to)
         else {
             preconditionFailure(
                 "\(Self.self) works only with the push/pop animation for \(MediaViewerViewController.self)."
@@ -74,18 +67,6 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         }
         let containerView = transitionContext.containerView
         containerView.addSubview(mediaViewerView)
-        
-        let tabBar = mediaViewer.tabBarController?.tabBar
-        let navigationBar = navigationController.navigationBar
-        
-        // Back up
-        let sourceViewHiddenBackup = sourceView?.isHidden ?? false
-        let tabBarSuperviewBackup = tabBar?.superview
-        let tabBarHiddenBackup = tabBar?.isHidden
-        let tabBarScrollEdgeAppearanceBackup = tabBar?.scrollEdgeAppearance
-        let navigationBarAlphaBackup = navigationBar.alpha
-        
-        // MARK: Prepare for the transition
         
         mediaViewerView.frame = transitionContext.finalFrame(for: mediaViewer)
         
@@ -127,32 +108,6 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         mediaViewer.insertImageViewForTransition(currentPageImageView)
         sourceView?.isHidden = true
         
-        let wasTabBarHidden = mediaViewer.tabBarHiddenBackup ?? true
-//        if let tabBar {
-//            // Show the tabBar during the transition
-//            containerView.addSubview(tabBar)
-//            if !wasTabBarHidden {
-//                tabBar.isHidden = false
-//            }
-//            
-//            // Make the tabBar opaque during the transition
-//            let appearance = UITabBarAppearance()
-//            appearance.configureWithDefaultBackground()
-//            tabBar.scrollEdgeAppearance = appearance
-//            
-//            // Disable the default animation applied to the tabBar
-//            if mediaViewer.hidesBottomBarWhenPushed,
-//               let animationKeys = tabBar.layer.animationKeys() {
-//                assert(animationKeys.allSatisfy { $0.starts(with: "position") })
-//                tabBar.layer.removeAllAnimations()
-//            }
-//        }
-        
-        if mediaViewer.navigationBarHiddenBackup {
-            tabBar?.alpha = 0
-            navigationBar.alpha = 0
-        }
-        
         let viewsToFadeInDuringTransition = mediaViewer.subviewsToFadeDuringTransition
         for view in mediaViewer.subviewsToFadeDuringTransition {
             view.alpha = 0
@@ -160,15 +115,8 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         
         // MARK: Animation
         
-        // NOTE: Animate only pageControlToolbar with easeInOut curve.
-        UIViewPropertyAnimator(duration: 0.25, curve: .easeInOut) {
-            mediaViewerView.layoutIfNeeded()
-            tabBar?.alpha = 0
-        }.startAnimation()
-        
         let duration = transitionDuration(using: transitionContext)
         let animator = UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
-            navigationBar.alpha = navigationBarAlphaBackup
             for view in viewsToFadeInDuringTransition {
                 view.alpha = 1
             }
@@ -188,14 +136,7 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
                 // Restore properties
                 currentPageImageView.transitioningConfiguration = configurationBackup
                 currentPageView.restoreLayoutConfigurationAfterTransition()
-                self.sourceView?.isHidden = sourceViewHiddenBackup
-                
-                if let tabBar {
-                    tabBar.isHidden = true
-//                    tabBar.isHidden = tabBarHiddenBackup!
-//                    tabBar.scrollEdgeAppearance = tabBarScrollEdgeAppearanceBackup
-//                    tabBarSuperviewBackup?.addSubview(tabBar)
-                }
+                self.sourceView?.isHidden = false
             case .start, .current:
                 assertionFailure("Unexpected position: \(position)")
             @unknown default:
@@ -209,25 +150,14 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         using transitionContext: some UIViewControllerContextTransitioning
     ) {
         guard let mediaViewer = transitionContext.viewController(forKey: .from) as? MediaViewerViewController,
-              let mediaViewerView = transitionContext.view(forKey: .from),
-              let toView = transitionContext.view(forKey: .to),
-              let toVC = transitionContext.viewController(forKey: .to)
+              let mediaViewerView = transitionContext.view(forKey: .from)
         else {
             preconditionFailure(
                 "\(Self.self) works only with the push/pop animation for \(MediaViewerViewController.self)."
             )
         }
-        let containerView = transitionContext.containerView
-        containerView.addSubview(toView)
-        containerView.addSubview(mediaViewerView)
         
-        // Back up
-        let sourceViewHiddenBackup = sourceView?.isHidden ?? false
-
         // MARK: Prepare for the transition
-        
-        toView.frame = transitionContext.finalFrame(for: toVC)
-        toView.layoutIfNeeded()
         
         let currentPageView = mediaViewer.currentPageViewController.mediaViewerOnePageView
         let currentPageImageView = currentPageView.imageView
@@ -269,34 +199,6 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
             currentPageImageView.clipsToBounds = true // TODO: Change according to the source configuration
         }
         
-//        // Customize the tabBar animation
-//        if let tabBar = toVC.tabBarController?.tabBar,
-//           let animationKeys = tabBar.layer.animationKeys() {
-//            assert(animationKeys.allSatisfy { $0.starts(with: "position") })
-//            tabBar.layer.removeAllAnimations()
-//            
-//            if toVC.hidesBottomBarWhenPushed {
-//                // Fade out the tabBar
-//                animator.addAnimations {
-//                    tabBar.alpha = 0
-//                }
-//                animator.addCompletion { position in
-//                    if position == .end {
-//                        tabBar.alpha = 1 // Reset
-//                    }
-//                }
-//            } else {
-//                // Fade in the tabBar
-//                tabBar.alpha = 0
-//                animator.addAnimations {
-//                    tabBar.alpha = 1
-//                }
-//            }
-//        }
-        
-        let navigationBarTintColorBackup = toVC.navigationController?.navigationBar.tintColor
-        toVC.navigationController?.navigationBar.tintColor = sourceNavigationBarTintColor
-
         animator.addCompletion { position in
             defer { transitionContext.completeTransition() }
             switch position {
@@ -304,8 +206,7 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
                 mediaViewerView.removeFromSuperview()
                 
                 // Restore properties
-                self.sourceView?.isHidden = sourceViewHiddenBackup
-                toVC.navigationController?.navigationBar.tintColor = navigationBarTintColorBackup
+                self.sourceView?.isHidden = false
             case .start, .current:
                 assertionFailure("Unexpected position: \(position)")
             @unknown default:
