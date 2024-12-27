@@ -23,22 +23,16 @@ final class MediaViewerInteractivePopTransition: NSObject {
     
     // MARK: Backups
     
-    private var sourceViewHiddenBackup = false
-    private var tabBarScrollEdgeAppearanceBackup: UITabBarAppearance?
-    private var tabBarAlphaBackup: CGFloat?
     private var initialZoomScale: CGFloat = 1
     private var initialImageTransform = CGAffineTransform.identity
     private var initialImageFrameInViewer = CGRect.null
-    private var sourceNavigationBarTintColor: UIColor?
-    private var navigationBarTintColorBackup: UIColor? = nil
 
     private var didPrepare = false
     
     // MARK: - Initializers
     
-    init(sourceView: UIView?, sourceNavigationBarTintColor: UIColor? = nil) {
+    init(sourceView: UIView?) {
         self.sourceView = sourceView
-        self.sourceNavigationBarTintColor = sourceNavigationBarTintColor
         super.init()
     }
 }
@@ -84,8 +78,7 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         guard let mediaViewer = transitionContext.viewController(forKey: .from) as? MediaViewerViewController,
               let mediaViewerView = transitionContext.view(forKey: .from),
               let toView = transitionContext.view(forKey: .to),
-              let toVC = transitionContext.viewController(forKey: .to),
-              let navigationController = mediaViewer.navigationController
+              let toVC = transitionContext.viewController(forKey: .to)
         else {
             preconditionFailure(
                 "\(Self.self) works only with the pop animation for \(MediaViewerViewController.self)."
@@ -94,12 +87,6 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         self.transitionContext = transitionContext
         let containerView = transitionContext.containerView
         
-        // Back up
-        sourceViewHiddenBackup = sourceView?.isHidden ?? false
-        tabBarScrollEdgeAppearanceBackup = tabBar?.scrollEdgeAppearance
-        tabBarAlphaBackup = tabBar?.alpha
-        navigationBarTintColorBackup = toVC.navigationController?.navigationBar.tintColor
-
         // MARK: Prepare for the transition
         
         toView.frame = transitionContext.finalFrame(for: toVC)
@@ -108,39 +95,13 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         
         sourceView?.isHidden = true
         
-        if let tabBar {
-            // Make tabBar opaque during the transition
-            let appearance = UITabBarAppearance()
-            appearance.configureWithDefaultBackground()
-            tabBar.scrollEdgeAppearance = appearance
-        }
-        
-        /*
-         [Workaround]
-         If the navigation bar is hidden on transition start, some animations
-         are applied by system and the bar remains hidden after the transition.
-         Specifying alpha solved this problem.
-         */
-        let navigationBar = navigationController.navigationBar
-        navigationBar.alpha = mediaViewer.isShowingMediaOnly 
-        ? 0.0001 // NOTE: .leastNormalMagnitude didn't work.
-        : 1
-        
         let viewsToFadeOutDuringTransition = mediaViewer.subviewsToFadeDuringTransition
 
-        // MARK: Animation
-        
-        let navigationBarAlpha = mediaViewer.navigationBarHiddenBackup
-        ? 0
-        : mediaViewer.navigationBarAlphaBackup
         animator = UIViewPropertyAnimator(duration: 0.25, dampingRatio: 1) {
-            navigationBar.alpha = navigationBarAlpha
             for view in viewsToFadeOutDuringTransition {
                 view.alpha = 0
             }
         }
-
-        toVC.navigationController?.navigationBar.tintColor = sourceNavigationBarTintColor
     }
     
     private func finishInteractiveTransition() {
@@ -152,8 +113,6 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         let mediaViewerView = transitionContext.view(forKey: .from)!
         let currentPageView = mediaViewerCurrentPageView(in: transitionContext)
         let currentPageImageView = currentPageView.imageView
-        
-        tabBar?.scrollEdgeAppearance = tabBarScrollEdgeAppearanceBackup
         
         let finishAnimator = UIViewPropertyAnimator(duration: 0.35, dampingRatio: 1) {
             if let sourceView = self.sourceView {
@@ -173,32 +132,12 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
             }
         }
         
-        let mediaViewer = transitionContext.viewController(forKey: .from) as! MediaViewerViewController
-        let toVC = transitionContext.viewController(forKey: .to)!
-        let navigationController = toVC.navigationController!
-        let navigationBar = navigationController.navigationBar
-
         finishAnimator.addCompletion { _ in
             mediaViewerView.removeFromSuperview()
             
             // Restore properties
-            self.sourceView?.isHidden = self.sourceViewHiddenBackup
-            navigationBar.alpha = mediaViewer.navigationBarAlphaBackup
-            navigationController.navigationBar.tintColor = self.navigationBarTintColorBackup
+            self.sourceView?.isHidden = false
 
-            /*
-             [Workaround]
-             Prevent navigationBar from getting unresponsive after
-             interactive pop with hidden navigationBar.
-             */
-            // Disable the default animation applied to the navigationBar
-            if let animationKeys = navigationBar.layer.animationKeys() {
-                assert(animationKeys.allSatisfy {
-                    $0.starts(with: "UIPacingAnimationForAnimatorsKey")
-                })
-                navigationBar.layer.removeAllAnimations()
-            }
-            
             transitionContext.completeTransition(true)
         }
         finishAnimator.startAnimation()
@@ -224,15 +163,10 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         
         cancelAnimator.addCompletion { _ in
             // Restore to pre-transition state
-            self.sourceView?.isHidden = self.sourceViewHiddenBackup
+            self.sourceView?.isHidden = false
             currentPageImageView.updateAnchorPointWithoutMoving(.init(x: 0.5, y: 0.5))
             currentPageImageView.transform = self.initialImageTransform
             currentPageView.restoreLayoutConfigurationAfterTransition()
-            
-            self.tabBar?.scrollEdgeAppearance = self.tabBarScrollEdgeAppearanceBackup
-            if let tabBarAlphaBackup = self.tabBarAlphaBackup {
-                self.tabBar?.alpha = tabBarAlphaBackup
-            }
             
             transitionContext.completeTransition(false)
         }

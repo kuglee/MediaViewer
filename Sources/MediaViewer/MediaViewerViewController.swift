@@ -121,12 +121,6 @@ open class MediaViewerViewController: UIPageViewController {
         }
     }
     
-    // MARK: Backups
-    
-    private(set) var tabBarHiddenBackup: Bool?
-    private(set) var navigationBarHiddenBackup = false
-    private(set) var navigationBarAlphaBackup = 1.0
-
     // MARK: - Initializers
     
     /// Creates a new viewer.
@@ -176,20 +170,10 @@ open class MediaViewerViewController: UIPageViewController {
         dataSource = self
         delegate = self
 
-        guard let navigationController else {
-            preconditionFailure(
-                "\(Self.self) must be embedded in UINavigationController."
-            )
-        }
-        
-        tabBarHiddenBackup = tabBarController?.tabBar.isHidden
-        navigationBarHiddenBackup = navigationController.isNavigationBarHidden
-        navigationBarAlphaBackup = navigationController.navigationBar.alpha
-        
         setUpViews()
         setUpGestureRecognizers()
         setUpSubscriptions()
-        
+
         /*
          NOTE:
          This delegate method is also called at initialization time,
@@ -201,13 +185,13 @@ open class MediaViewerViewController: UIPageViewController {
             didMoveToMediaWith: currentMediaIdentifier
         )
     }
-    
+
     private func setUpViews() {
         // Navigation
         let appearance = UINavigationBarAppearance()
         appearance.configureWithDefaultBackground()
         navigationItem.scrollEdgeAppearance = appearance
-        
+
         // Subviews
         configureBackground(showingMediaOnly: false)
         view.insertSubview(backgroundView, at: 0)
@@ -220,8 +204,67 @@ open class MediaViewerViewController: UIPageViewController {
             backgroundView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             backgroundView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
+
+        _ = self.overlayView
     }
-    
+
+      private lazy var titleLabel: UILabel = {
+          let label = UILabel()
+          label.textAlignment = .center
+
+          return label
+      }()
+
+      private func updateTitle() {
+          let currentPageIndex = mediaViewerVM.page(with: currentMediaIdentifier)!
+          titleLabel.text = "\(currentPageIndex + 1)., összesen \(mediaViewerVM.mediaIdentifiers.count)"
+      }
+
+    private lazy var overlayView: UIStackView = {
+        let button = UIButton()
+        var config = UIButton.Configuration.plain()
+        config.image = UIImage(systemName: "xmark.circle.fill")
+        config.baseForegroundColor = .label
+        config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(font: .preferredFont(forTextStyle: .title2))
+        config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8)
+        button.configuration = config
+        button.addTarget(self, action: #selector(closeButtonTapped), for: .touchUpInside)
+        button.translatesAutoresizingMaskIntoConstraints = false
+
+        let spacerView = UIView()
+        spacerView.translatesAutoresizingMaskIntoConstraints = false
+
+        let blurEffect = UIBlurEffect(style: .systemChromeMaterial)
+        let blurView = UIVisualEffectView(effect: blurEffect)
+        blurView.translatesAutoresizingMaskIntoConstraints = false
+
+        let stackView = UIStackView(arrangedSubviews: [spacerView, titleLabel, button ])
+        stackView.axis = .horizontal
+        stackView.alignment = .center
+        stackView.distribution = .equalCentering
+        stackView.insertSubview(blurView, at: 0)
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+
+        self.view.addSubview(stackView)
+
+        NSLayoutConstraint.activate([
+          stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+          stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+          stackView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+          spacerView.widthAnchor.constraint(equalTo: button.widthAnchor),
+          blurView.topAnchor.constraint(equalTo: view.topAnchor),
+          blurView.bottomAnchor.constraint(equalTo: stackView.bottomAnchor),
+          blurView.leadingAnchor.constraint(equalTo: stackView.leadingAnchor),
+          blurView.trailingAnchor.constraint(equalTo: stackView.trailingAnchor)
+        ])
+
+        return stackView
+      }()
+
+    @objc func closeButtonTapped() {
+      self.dismiss(animated: true)
+    }
+
     private func setUpGestureRecognizers() {
         panRecognizer.delegate = self
         panRecognizer.addTarget(self, action: #selector(panned))
@@ -232,25 +275,24 @@ open class MediaViewerViewController: UIPageViewController {
         mediaViewerVM.$showsMediaOnly
             .dropFirst() // Skip initial
             .sink { [weak self] showsMediaOnly in
-                guard let self, let navigationController else { return }
+                guard let self else { return }
                 shouldHideHomeIndicator = showsMediaOnly
                 
                 let animator = UIViewPropertyAnimator(
                     duration: UINavigationController.hideShowBarDuration,
                     dampingRatio: 1
                 ) {
-                    self.tabBarController?.tabBar.isHidden = showsMediaOnly || self.hidesBottomBarWhenPushed
-                    navigationController.navigationBar.alpha = showsMediaOnly ? 0 : 1
+                    self.overlayView.alpha = showsMediaOnly ? 0 : 1
                     self.configureBackground(showingMediaOnly: showsMediaOnly)
                 }
                 if showsMediaOnly {
                     animator.addCompletion { position in
                         if position == .end {
-                            navigationController.isNavigationBarHidden = true
+                            self.overlayView.isHidden = true
                         }
                     }
                 } else {
-                    navigationController.isNavigationBarHidden = false
+                    self.overlayView.isHidden = false
                 }
                 
                 // Ignore single tap during animation
@@ -263,75 +305,6 @@ open class MediaViewerViewController: UIPageViewController {
                 animator.startAnimation()
             }
             .store(in: &cancellables)
-    }
-    
-    open override func viewIsAppearing(_ animated: Bool) {
-        super.viewIsAppearing(animated)
-        
-        guard let navigationController else {
-            preconditionFailure(
-                "\(Self.self) must be embedded in UINavigationController."
-            )
-        }
-        
-        if !mediaViewerVM.showsMediaOnly {
-            if navigationController.isNavigationBarHidden {
-                navigationController.setNavigationBarHidden(false, animated: animated)
-            }
-        }
-    }
-    
-    open override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        
-        guard let navigationController else {
-            preconditionFailure(
-                "\(Self.self) must be embedded in UINavigationController."
-            )
-        }
-        
-        // Restore the appearance
-        // NOTE: Animating in the transitionCoordinator.animate(...) didn't work.
-        let tabBar = tabBarController?.tabBar
-        if let tabBar, let tabBarHiddenBackup {
-            let tabBarWillAppear = tabBar.isHidden && !tabBarHiddenBackup
-            if tabBarWillAppear {
-                /*
-                 NOTE:
-                 This animation will be managed by InteractivePopTransition.
-                 */
-                tabBar.alpha = 0
-                UIView.animate(withDuration: 0.2) {
-                    tabBar.alpha = 1
-                }
-            }
-            tabBar.isHidden = tabBarHiddenBackup
-        }
-        navigationController.navigationBar.alpha = navigationBarAlphaBackup
-
-        /*
-         [Workaround]
-         Can't use navigationController.setNavigationBarHidden because when
-         navigationBarHiddenBackup is false and setNavigationBarHidden is
-         animated, the navigationBar's alpha value is set to 0.
-
-         To avoid this, use a crossDissolve transition.
-         */
-        UIView.transition(
-            with: navigationController.navigationBar,
-            duration: animated ? UINavigationController.hideShowBarDuration : 0,
-            options: .transitionCrossDissolve
-        ) {
-            navigationController.isNavigationBarHidden = self.navigationBarHiddenBackup
-        }
-        transitionCoordinator?.animate(alongsideTransition: { _ in }) { context in
-            if context.isCancelled {
-                // Cancel the appearance restoration
-                tabBar?.isHidden = self.isShowingMediaOnly || self.hidesBottomBarWhenPushed
-                navigationController.navigationBar.alpha = self.isShowingMediaOnly ? 0 : 1
-                navigationController.isNavigationBarHidden = self.isShowingMediaOnly
-            }
-        }
     }
     
     // MARK: - Override
@@ -406,6 +379,8 @@ open class MediaViewerViewController: UIPageViewController {
     }
     
     private func pageDidChange() {
+        updateTitle()
+
         mediaViewerDelegate?.mediaViewer(
             self,
             didMoveToMediaWith: currentMediaIdentifier
@@ -427,8 +402,7 @@ open class MediaViewerViewController: UIPageViewController {
                 transitionSourceViewForMediaWith: currentMediaIdentifier
             )
             interactivePopTransition = .init(
-              sourceView: sourceView,
-              sourceNavigationBarTintColor: navigationController?.navigationBar.tintColor
+              sourceView: sourceView
             )
 
             /*
@@ -448,7 +422,7 @@ open class MediaViewerViewController: UIPageViewController {
              */
             interactivePopTransition?.prepareForInteractiveTransition(for: self)
             Task {
-                navigationController?.popViewController(animated: true)
+                self.dismiss(animated: true)
             }
         }
         
@@ -565,43 +539,23 @@ extension MediaViewerViewController: UIPageViewControllerDelegate {
     }
 }
 
-// MARK: - UINavigationControllerDelegate -
+// MARK: - UIViewControllerTransitioningDelegate -
 
-extension MediaViewerViewController: UINavigationControllerDelegate {
-    
-    public func navigationController(
-        _ navigationController: UINavigationController,
-        animationControllerFor operation: UINavigationController.Operation,
-        from fromVC: UIViewController,
-        to toVC: UIViewController
+extension MediaViewerViewController: UIViewControllerTransitioningDelegate {
+
+    public func animationController(
+        forPresented presented: UIViewController,
+        presenting: UIViewController,
+        source: UIViewController
     ) -> (any UIViewControllerAnimatedTransitioning)? {
-        if operation == .pop && fromVC == self {
-            mediaViewerDelegate?.mediaViewer(
-                self,
-                willBeginPopTransitionTo: toVC
-            )
-        }
-        
-        if operation == .pop,
-           mediaViewerDataSource.mediaIdentifiers(for: self).isEmpty {
-            // When all media is deleted
-            return MediaViewerTransition(
-                operation: operation,
-                sourceView: nil,
-                sourceNavigationBarTintColor: navigationController.navigationBar.tintColor,
-                sourceImage: { nil }
-            )
-        }
-        
-        let sourceView: UIView?
-        sourceView = interactivePopTransition?.sourceView ?? mediaViewerDataSource.mediaViewer(
+        let sourceView = mediaViewerDataSource.mediaViewer(
             self,
             transitionSourceViewForMediaWith: currentMediaIdentifier
         )
+
         return MediaViewerTransition(
-            operation: operation,
+            operation: .present,
             sourceView: sourceView,
-            sourceNavigationBarTintColor: navigationController.navigationBar.tintColor,
             sourceImage: { [weak self] in
                 guard let self else { return nil }
                 return mediaViewerDataSource.mediaViewer(
@@ -611,10 +565,45 @@ extension MediaViewerViewController: UINavigationControllerDelegate {
             }
         )
     }
-    
-    public func navigationController(
-        _ navigationController: UINavigationController,
-        interactionControllerFor animationController: any UIViewControllerAnimatedTransitioning
+
+    public func animationController(
+        forDismissed dismissed: UIViewController
+    ) -> (any UIViewControllerAnimatedTransitioning)? {
+        // Handle dismissal animation
+        if mediaViewerDataSource.mediaIdentifiers(for: self).isEmpty {
+            // When all media is deleted
+            return MediaViewerTransition(
+                operation: .dismiss,
+                sourceView: nil,
+                sourceImage: { nil }
+            )
+        }
+
+        let sourceView = interactivePopTransition?.sourceView ?? mediaViewerDataSource.mediaViewer(
+            self,
+            transitionSourceViewForMediaWith: currentMediaIdentifier
+        )
+
+        mediaViewerDelegate?.mediaViewer(
+            self,
+            willBeginPopTransitionTo: presentingViewController ?? UIViewController()
+        )
+
+        return MediaViewerTransition(
+            operation: .dismiss,
+            sourceView: sourceView,
+            sourceImage: { [weak self] in
+                guard let self else { return nil }
+                return mediaViewerDataSource.mediaViewer(
+                    self,
+                    transitionSourceImageWith: sourceView
+                )
+            }
+        )
+    }
+
+    public func interactionControllerForDismissal(
+        using animator: any UIViewControllerAnimatedTransitioning
     ) -> (any UIViewControllerInteractiveTransitioning)? {
         interactivePopTransition
     }

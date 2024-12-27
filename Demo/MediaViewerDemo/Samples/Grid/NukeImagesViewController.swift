@@ -88,7 +88,10 @@ extension NukeImagesViewController: UICollectionViewDelegate {
     let mediaViewer = MediaViewerViewControllerWithCloseButton(opening: asset, dataSource: self)
     mediaViewer.mediaViewerDelegate = self
 
-    navigationController?.delegate = mediaViewer
+//    navigationController?.delegate = mediaViewer
+
+    mediaViewer.modalPresentationStyle = .fullScreen // or whatever style you prefer
+    mediaViewer.transitioningDelegate = mediaViewer
 
     Task {
       // put the image into the cache to have it be loaded for the transition
@@ -96,7 +99,8 @@ extension NukeImagesViewController: UICollectionViewDelegate {
         _ = try? await ImagePipeline.shared.image(for: url)
       }
 
-      navigationController?.pushViewController(mediaViewer, animated: true)
+//      navigationController?.pushViewController(mediaViewer, animated: true)
+      present(mediaViewer, animated: true)
     }
   }
 }
@@ -146,15 +150,7 @@ extension NukeImagesViewController: MediaViewerDataSource {
 
 // MARK: - MediaViewerDelegate -
 
-extension NukeImagesViewController: MediaViewerDelegate {
-  func mediaViewer(
-    _ mediaViewer: MediaViewerViewController,
-    didMoveToMediaWith mediaIdentifier: RemoteImage
-  ) {
-    let indexPathForCurrentImage = dataSource.indexPath(for: mediaIdentifier)!
-    mediaViewer.title = "\(indexPathForCurrentImage.item + 1)., összesen \(indexPathForCurrentImage.count)"
-  }
-}
+extension NukeImagesViewController: MediaViewerDelegate {}
 
 public struct RemoteImage: Codable, Equatable, Sendable, Identifiable, Hashable {
   public let id: UUID
