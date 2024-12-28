@@ -120,7 +120,28 @@ open class MediaViewerViewController: UIPageViewController {
             setNeedsUpdateOfHomeIndicatorAutoHidden()
         }
     }
-    
+
+    private var pageTransitionState: PageTransitionState = .init()
+
+    private struct PageTransitionState {
+        var pendingViewController: MediaViewerOnePageViewController?
+        var titleState: TitleState = .current
+
+        var isTransitioning: Bool {
+            pendingViewController != nil
+        }
+
+        mutating func reset() {
+            pendingViewController = nil
+            titleState = .current
+        }
+
+        enum TitleState {
+            case next
+            case current
+        }
+    }
+
     // MARK: - Initializers
     
     /// Creates a new viewer.
@@ -169,6 +190,7 @@ open class MediaViewerViewController: UIPageViewController {
         
         dataSource = self
         delegate = self
+        scrollView.delegate = self
 
         setUpViews()
         setUpGestureRecognizers()
@@ -206,6 +228,7 @@ open class MediaViewerViewController: UIPageViewController {
         ])
 
         _ = self.overlayView
+        updateTitle()
     }
 
       private lazy var titleLabel: UILabel = {
@@ -216,8 +239,16 @@ open class MediaViewerViewController: UIPageViewController {
       }()
 
       private func updateTitle() {
-          let currentPageIndex = mediaViewerVM.page(with: currentMediaIdentifier)!
-          titleLabel.text = "\(currentPageIndex + 1)., összesen \(mediaViewerVM.mediaIdentifiers.count)"
+          let nextMediaIdentifier =
+          switch pageTransitionState.titleState {
+              case .next:
+                  pageTransitionState.pendingViewController?.mediaIdentifier ?? currentMediaIdentifier
+              case .current:
+                  currentMediaIdentifier
+              }
+          let nextPageIndex = mediaViewerVM.page(with: nextMediaIdentifier)!
+
+          titleLabel.text = "\(nextPageIndex + 1)., összesen \(mediaViewerVM.mediaIdentifiers.count)"
       }
 
     private lazy var overlayView: UIStackView = {
@@ -379,8 +410,6 @@ open class MediaViewerViewController: UIPageViewController {
     }
     
     private func pageDidChange() {
-        updateTitle()
-
         mediaViewerDelegate?.mediaViewer(
             self,
             didMoveToMediaWith: currentMediaIdentifier
@@ -526,7 +555,20 @@ extension MediaViewerViewController: UIPageViewControllerDataSource {
 // MARK: - UIPageViewControllerDelegate -
 
 extension MediaViewerViewController: UIPageViewControllerDelegate {
-    
+    public func pageViewController(_ pageViewController: UIPageViewController, willTransitionTo pendingViewControllers: [UIViewController]) {
+        guard let firstPendingViewController = pendingViewControllers.first else {
+            return
+        }
+
+        guard let mediaViewerOnePage = firstPendingViewController as? MediaViewerOnePageViewController else {
+            preconditionFailure(
+              "All ViewControllers in \(Self.self) must be of type \(MediaViewerOnePageViewController.self)."
+            )
+        }
+
+        pageTransitionState.pendingViewController = mediaViewerOnePage
+  }
+
     open func pageViewController(
         _ pageViewController: UIPageViewController,
         didFinishAnimating finished: Bool,
@@ -534,6 +576,8 @@ extension MediaViewerViewController: UIPageViewControllerDelegate {
         transitionCompleted completed: Bool
     ) {
         if completed {
+            pageTransitionState.reset()
+
             pageDidChange()
         }
     }
@@ -652,6 +696,47 @@ extension MediaViewerViewController: UIGestureRecognizerDelegate {
         }
         return false
     }
+}
+
+// MARK: - UIScrollViewDelegate -
+
+extension MediaViewerViewController: UIScrollViewDelegate {
+  public func scrollViewDidScroll(_ scrollView: UIScrollView) {
+      guard pageTransitionState.isTransitioning else { return }
+
+      let pageWidth = scrollView.bounds.width
+      let offset = scrollView.contentOffset.x
+      let progress = (offset - pageWidth) / pageWidth
+
+      // Only allow title updates if we have a valid pending VC and the scroll
+      // is moving in the correct direction for that pending VC
+      guard let pendingVC = pageTransitionState.pendingViewController else {
+          pageTransitionState.titleState = .current
+          updateTitle()
+          return
+      }
+
+      // Determine if we're moving forward or backward based on pending VC
+      let isPendingForward = mediaViewerVM.page(with: pendingVC.mediaIdentifier)! >
+                            mediaViewerVM.page(with: currentMediaIdentifier)!
+
+      // Only update direction if scroll direction matches pending direction
+      if (isPendingForward && progress > 0) || (!isPendingForward && progress < 0) {
+          let newTitleState: PageTransitionState.TitleState = if abs(progress) > 0.5 {
+              .next
+          } else {
+              .current
+          }
+
+          if newTitleState != pageTransitionState.titleState {
+              pageTransitionState.titleState = newTitleState
+              updateTitle()
+          }
+      } else {
+          pageTransitionState.titleState = .current
+          updateTitle()
+      }
+  }
 }
 
 // MARK: - Transition helpers -
