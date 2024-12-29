@@ -80,7 +80,7 @@ extension NukeImagesViewController: UICollectionViewDelegate {
     let mediaViewer = MediaViewerViewController(opening: asset, dataSource: self)
     mediaViewer.mediaViewerDelegate = self
 
-    mediaViewer.modalPresentationStyle = .overFullScreen
+    mediaViewer.modalPresentationStyle = .overCurrentContext
     mediaViewer.modalPresentationCapturesStatusBarAppearance = true
     mediaViewer.transitioningDelegate = mediaViewer
 

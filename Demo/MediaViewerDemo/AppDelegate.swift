@@ -64,10 +64,13 @@ public struct SwiftUIApp: App {
 
   public var body: some Scene {
     WindowGroup {
-      NavigationStack {
-        Test(remoteImages: self.remoteImages)
-          .navigationTitle("Test")
-          .navigationBarTitleDisplayMode(.inline)
+      TabView(selection: .constant(1)) {
+        NavigationStack {
+          Test(remoteImages: self.remoteImages)
+            .navigationTitle("Test")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .tabItem { Label("Kezdőlap", systemImage: "house.fill") }.tag(1)
       }
     }
   }

@@ -88,7 +88,9 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         sourceView?.isHidden = true
         
         let viewsToFadeOutDuringTransition = mediaViewer.subviewsToFadeDuringTransition
-
+        
+        // MARK: Animation
+        
         animator = UIViewPropertyAnimator(duration: 0.25, dampingRatio: 1) {
             for view in viewsToFadeOutDuringTransition {
                 view.alpha = 0

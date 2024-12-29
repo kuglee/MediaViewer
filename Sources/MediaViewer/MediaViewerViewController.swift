@@ -96,7 +96,7 @@ open class MediaViewerViewController: UIPageViewController {
     
     private var destinationPageVCAfterReloading: MediaViewerOnePageViewController?
     
-    private lazy var isShowingMediaOnly: Bool = mediaViewerVM.showsMediaOnly {
+    lazy var isShowingMediaOnly: Bool = mediaViewerVM.showsMediaOnly {
         didSet {
             setNeedsStatusBarAppearanceUpdate()
         }
@@ -122,6 +122,16 @@ open class MediaViewerViewController: UIPageViewController {
             setNeedsUpdateOfHomeIndicatorAutoHidden()
         }
     }
+    
+    public var navController: UINavigationController? {
+        presentationController?.presentingViewController as? UINavigationController
+    }
+    
+    // MARK: Backups
+     
+    private(set) var tabBarHiddenBackup: Bool?
+    private(set) var navigationBarHiddenBackup = false
+    private(set) var navigationBarAlphaBackup = 1.0
     
     private var pageTransitionState: PageTransitionState = .init()
 
@@ -194,6 +204,16 @@ open class MediaViewerViewController: UIPageViewController {
         delegate = self
         scrollView.delegate = self
 
+        guard let navigationController = navController else {
+            preconditionFailure(
+                "\(Self.self) must be embedded in UINavigationController."
+            )
+        }
+        
+        tabBarHiddenBackup = navController?.tabBarController?.tabBar.isHidden
+        navigationBarHiddenBackup = navigationController.isNavigationBarHidden
+        navigationBarAlphaBackup = navigationController.navigationBar.alpha
+        
         setUpViews()
         setUpGestureRecognizers()
         setUpSubscriptions()
@@ -316,6 +336,7 @@ open class MediaViewerViewController: UIPageViewController {
                     duration: UINavigationController.hideShowBarDuration,
                     dampingRatio: 1
                 ) {
+                    self.navController?.tabBarController?.tabBar.isHidden = showsMediaOnly || self.hidesBottomBarWhenPushed
                     self.overlayView.alpha = showsMediaOnly ? 0 : 1
                     self.configureBackground(showingMediaOnly: showsMediaOnly)
                 }
@@ -341,6 +362,86 @@ open class MediaViewerViewController: UIPageViewController {
             .store(in: &cancellables)
     }
     
+    open override func viewIsAppearing(_ animated: Bool) {
+        super.viewIsAppearing(animated)
+        
+        guard let navigationController = navController else {
+            preconditionFailure(
+                "\(Self.self) must be embedded in UINavigationController."
+            )
+        }
+        
+        let tabBar = navigationController.tabBarController?.tabBar
+        if let tabBar, !tabBar.isHidden {
+          tabBar.alpha = 1
+          let animator = UIViewPropertyAnimator(duration: 0.2, dampingRatio: 1) {
+              tabBar.alpha = 0
+          }
+          animator.addCompletion { position in
+              if position == .end {
+                  tabBar.isHidden = true
+              }
+          }
+
+          animator.startAnimation()
+        }
+
+        navigationController.setNavigationBarHidden(true, animated: animated)
+    }
+    
+    open override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        
+        guard let navigationController = navController else {
+            preconditionFailure(
+                "\(Self.self) must be embedded in UINavigationController."
+            )
+        }
+        
+        // Restore the appearance
+        // NOTE: Animating in the transitionCoordinator.animate(...) didn't work.
+        let tabBar = navigationController.tabBarController?.tabBar
+        if let tabBar, let tabBarHiddenBackup {
+            let tabBarWillAppear = tabBar.isHidden && !tabBarHiddenBackup
+            if tabBarWillAppear {
+                /*
+                 NOTE:
+                 This animation will be managed by InteractivePopTransition.
+                 */
+                tabBar.alpha = 0
+                UIView.animate(withDuration: 0.2) {
+                    tabBar.alpha = 1
+                }
+            }
+            tabBar.isHidden = tabBarHiddenBackup
+        }
+        navigationController.navigationBar.alpha = navigationBarAlphaBackup
+
+        /*
+         [Workaround]
+         Can't use navigationController.setNavigationBarHidden because when
+         navigationBarHiddenBackup is false and setNavigationBarHidden is
+         animated, the navigationBar's alpha value is set to 0.
+
+         To avoid this, use a crossDissolve transition.
+         */
+        UIView.transition(
+            with: navigationController.navigationBar,
+            duration: animated ? UINavigationController.hideShowBarDuration : 0,
+            options: .transitionCrossDissolve
+        ) {
+            navigationController.isNavigationBarHidden = self.navigationBarHiddenBackup
+        }
+        transitionCoordinator?.animate(alongsideTransition: { _ in }) { context in
+            if context.isCancelled {
+                // Cancel the appearance restoration
+                tabBar?.isHidden = self.isShowingMediaOnly || self.hidesBottomBarWhenPushed
+                navigationController.navigationBar.alpha = self.isShowingMediaOnly ? 0 : 1
+                navigationController.isNavigationBarHidden = self.isShowingMediaOnly
+            }
+        }
+    }
+        
     // MARK: - Override
     
     open override var prefersStatusBarHidden: Bool {
