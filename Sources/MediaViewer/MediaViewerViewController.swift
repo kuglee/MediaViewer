@@ -336,7 +336,6 @@ open class MediaViewerViewController: UIPageViewController {
                     duration: UINavigationController.hideShowBarDuration,
                     dampingRatio: 1
                 ) {
-                    self.navController?.tabBarController?.tabBar.isHidden = showsMediaOnly || self.hidesBottomBarWhenPushed
                     self.overlayView.alpha = showsMediaOnly ? 0 : 1
                     self.configureBackground(showingMediaOnly: showsMediaOnly)
                 }
