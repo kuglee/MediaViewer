@@ -59,7 +59,8 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         using transitionContext: some UIViewControllerContextTransitioning
     ) {
         guard let mediaViewer = transitionContext.viewController(forKey: .to) as? MediaViewerViewController,
-              let mediaViewerView = transitionContext.view(forKey: .to)
+              let mediaViewerView = transitionContext.view(forKey: .to),
+              let navigationController = mediaViewer.navController
         else {
             preconditionFailure(
                 "\(Self.self) works only with the push/pop animation for \(MediaViewerViewController.self)."
@@ -67,6 +68,15 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         }
         let containerView = transitionContext.containerView
         containerView.addSubview(mediaViewerView)
+        
+        let tabBar = navigationController.tabBarController?.tabBar
+        let navigationBar = navigationController.navigationBar
+        
+        // Back up
+        let sourceViewHiddenBackup = sourceView?.isHidden ?? false
+        let navigationBarAlphaBackup = navigationBar.alpha
+        
+        // MARK: Prepare for the transition
         
         mediaViewerView.frame = transitionContext.finalFrame(for: mediaViewer)
         
@@ -115,8 +125,19 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         
         // MARK: Animation
         
+        UIViewPropertyAnimator(duration: 0.2, curve: .easeInOut) {
+            if mediaViewer.tabBarHiddenBackup == false {
+                tabBar?.alpha = 0
+            }
+
+            if mediaViewer.navigationBarHiddenBackup {
+                navigationBar.alpha = 0
+            }
+        }.startAnimation()
+        
         let duration = transitionDuration(using: transitionContext)
         let animator = UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
+            navigationBar.alpha = navigationBarAlphaBackup
             for view in viewsToFadeInDuringTransition {
                 view.alpha = 1
             }
@@ -136,7 +157,11 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
                 // Restore properties
                 currentPageImageView.transitioningConfiguration = configurationBackup
                 currentPageView.restoreLayoutConfigurationAfterTransition()
-                self.sourceView?.isHidden = false
+                self.sourceView?.isHidden = sourceViewHiddenBackup
+                
+                if let tabBar {
+                    tabBar.isHidden = true
+                }
             case .start, .current:
                 assertionFailure("Unexpected position: \(position)")
             @unknown default:
@@ -157,6 +182,9 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
             )
         }
         
+        // Back up
+        let sourceViewHiddenBackup = sourceView?.isHidden ?? false
+
         // MARK: Prepare for the transition
         
         let currentPageView = mediaViewer.currentPageViewController.mediaViewerOnePageView
@@ -206,7 +234,7 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
                 mediaViewerView.removeFromSuperview()
                 
                 // Restore properties
-                self.sourceView?.isHidden = false
+                self.sourceView?.isHidden = sourceViewHiddenBackup
             case .start, .current:
                 assertionFailure("Unexpected position: \(position)")
             @unknown default:

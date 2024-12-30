@@ -362,33 +362,6 @@ open class MediaViewerViewController: UIPageViewController {
             .store(in: &cancellables)
     }
     
-    open override func viewIsAppearing(_ animated: Bool) {
-        super.viewIsAppearing(animated)
-        
-        guard let navigationController = navController else {
-            preconditionFailure(
-                "\(Self.self) must be embedded in UINavigationController."
-            )
-        }
-        
-        let tabBar = navigationController.tabBarController?.tabBar
-        if let tabBar, !tabBar.isHidden {
-          tabBar.alpha = 1
-          let animator = UIViewPropertyAnimator(duration: 0.2, dampingRatio: 1) {
-              tabBar.alpha = 0
-          }
-          animator.addCompletion { position in
-              if position == .end {
-                  tabBar.isHidden = true
-              }
-          }
-
-          animator.startAnimation()
-        }
-
-        navigationController.setNavigationBarHidden(true, animated: animated)
-    }
-    
     open override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         

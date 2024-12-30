@@ -18,11 +18,15 @@ final class MediaViewerInteractivePopTransition: NSObject {
     private var shouldAnimateTabBar = false
     
     private var tabBar: UITabBar? {
-        transitionContext?.viewController(forKey: .to)?.tabBarController?.tabBar
+        (transitionContext?.viewController(forKey: .from) as? MediaViewerViewController)?
+            .navController?.tabBarController?.tabBar
     }
     
     // MARK: Backups
     
+    private var sourceViewHiddenBackup = false
+    private var tabBarScrollEdgeAppearanceBackup: UITabBarAppearance?
+    private var tabBarAlphaBackup: CGFloat?
     private var initialZoomScale: CGFloat = 1
     private var initialImageTransform = CGAffineTransform.identity
     private var initialImageFrameInViewer = CGRect.null
@@ -75,7 +79,8 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
     ) {
         assert(didPrepare)
         
-        guard let mediaViewer = transitionContext.viewController(forKey: .from) as? MediaViewerViewController
+        guard let mediaViewer = transitionContext.viewController(forKey: .from) as? MediaViewerViewController,
+              let navigationController = mediaViewer.navController
         else {
             preconditionFailure(
                 "\(Self.self) works only with the pop animation for \(MediaViewerViewController.self)."
@@ -83,15 +88,42 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         }
         self.transitionContext = transitionContext
         
+        // Back up
+        sourceViewHiddenBackup = sourceView?.isHidden ?? false
+        tabBarScrollEdgeAppearanceBackup = tabBar?.scrollEdgeAppearance
+        tabBarAlphaBackup = tabBar?.alpha
+        
         // MARK: Prepare for the transition
         
         sourceView?.isHidden = true
+        
+        if let tabBar {
+            // Make tabBar opaque during the transition
+            let appearance = UITabBarAppearance()
+            appearance.configureWithDefaultBackground()
+            tabBar.scrollEdgeAppearance = appearance
+        }
+        
+        /*
+         [Workaround]
+         If the navigation bar is hidden on transition start, some animations
+         are applied by system and the bar remains hidden after the transition.
+         Specifying alpha solved this problem.
+         */
+        let navigationBar = navigationController.navigationBar
+        navigationBar.alpha = mediaViewer.isShowingMediaOnly 
+        ? 0.0001 // NOTE: .leastNormalMagnitude didn't work.
+        : 1
         
         let viewsToFadeOutDuringTransition = mediaViewer.subviewsToFadeDuringTransition
         
         // MARK: Animation
         
+        let navigationBarAlpha = mediaViewer.navigationBarHiddenBackup
+        ? 0
+        : mediaViewer.navigationBarAlphaBackup
         animator = UIViewPropertyAnimator(duration: 0.25, dampingRatio: 1) {
+            navigationBar.alpha = navigationBarAlpha
             for view in viewsToFadeOutDuringTransition {
                 view.alpha = 0
             }
@@ -107,6 +139,8 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         let mediaViewerView = transitionContext.view(forKey: .from)!
         let currentPageView = mediaViewerCurrentPageView(in: transitionContext)
         let currentPageImageView = currentPageView.imageView
+        
+        tabBar?.scrollEdgeAppearance = tabBarScrollEdgeAppearanceBackup
         
         let finishAnimator = UIViewPropertyAnimator(duration: 0.35, dampingRatio: 1) {
             if let sourceView = self.sourceView {
@@ -126,12 +160,30 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
             }
         }
         
+        let mediaViewer = transitionContext.viewController(forKey: .from) as! MediaViewerViewController
+        let navigationController = mediaViewer.navController!
+        let navigationBar = navigationController.navigationBar
+
         finishAnimator.addCompletion { _ in
             mediaViewerView.removeFromSuperview()
             
             // Restore properties
-            self.sourceView?.isHidden = false
+            self.sourceView?.isHidden = self.sourceViewHiddenBackup
+            navigationBar.alpha = mediaViewer.navigationBarAlphaBackup
 
+            /*
+             [Workaround]
+             Prevent navigationBar from getting unresponsive after
+             interactive pop with hidden navigationBar.
+             */
+            // Disable the default animation applied to the navigationBar
+            if let animationKeys = navigationBar.layer.animationKeys() {
+                assert(animationKeys.allSatisfy {
+                    $0.starts(with: "UIPacingAnimationForAnimatorsKey")
+                })
+                navigationBar.layer.removeAllAnimations()
+            }
+            
             transitionContext.completeTransition(true)
         }
         finishAnimator.startAnimation()
@@ -157,10 +209,15 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         
         cancelAnimator.addCompletion { _ in
             // Restore to pre-transition state
-            self.sourceView?.isHidden = false
+            self.sourceView?.isHidden = self.sourceViewHiddenBackup
             currentPageImageView.updateAnchorPointWithoutMoving(.init(x: 0.5, y: 0.5))
             currentPageImageView.transform = self.initialImageTransform
             currentPageView.restoreLayoutConfigurationAfterTransition()
+            
+            self.tabBar?.scrollEdgeAppearance = self.tabBarScrollEdgeAppearanceBackup
+            if let tabBarAlphaBackup = self.tabBarAlphaBackup {
+                self.tabBar?.alpha = tabBarAlphaBackup
+            }
             
             transitionContext.completeTransition(false)
         }
