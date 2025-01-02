@@ -69,19 +69,7 @@ open class MediaViewerViewController: UIPageViewController {
     }
     
     var currentMediaIdentifier: AnyMediaIdentifier {
-        currentPageViewController.mediaIdentifier
-    }
-    
-    /// A view controller for the current page.
-    ///
-    /// During reloading, `visiblePageViewController` returns the page that was displayed
-    /// just before reloading, while `currentPageViewController` returns the page that will be
-    /// displayed eventually.
-    var currentPageViewController: MediaViewerOnePageViewController {
-        if let destinationPageVCAfterReloading {
-            return destinationPageVCAfterReloading
-        }
-        return visiblePageViewController
+        visiblePageViewController.mediaIdentifier
     }
     
     /// A view controller for the currently visible page.
@@ -350,7 +338,7 @@ open class MediaViewerViewController: UIPageViewController {
                 }
                 
                 // Ignore single tap during animation
-                let singleTap = currentPageViewController.singleTapRecognizer
+                let singleTap = visiblePageViewController.singleTapRecognizer
                 singleTap.isEnabled = false
                 animator.addCompletion { _ in
                     singleTap.isEnabled = true
@@ -742,7 +730,7 @@ extension MediaViewerViewController: UIGestureRecognizerDelegate {
         let velocity = panRecognizer.velocity(in: nil)
         let isMovingDown = velocity.y > 0 && velocity.y > abs(velocity.x)
         
-        let mediaScrollView = currentPageViewController.mediaViewerOnePageView.scrollView
+        let mediaScrollView = visiblePageViewController.mediaViewerOnePageView.scrollView
         switch otherGestureRecognizer {
         case mediaScrollView.panGestureRecognizer:
             // If the scroll position reaches the top edge, allow an interactive pop by pulldown.
@@ -822,7 +810,7 @@ extension MediaViewerViewController {
     var subviewsToFadeDuringTransition: [UIView] {
         view.subviews
             .filter {
-                $0 != currentPageViewController.mediaViewerOnePageView.imageView
+                $0 != visiblePageViewController.mediaViewerOnePageView.imageView
             }
     }
     

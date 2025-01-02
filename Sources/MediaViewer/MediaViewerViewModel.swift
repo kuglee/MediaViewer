@@ -53,22 +53,3 @@ final class MediaViewerViewModel: ObservableObject {
         return destinationPage < currentPage ? .reverse : .forward
     }
 }
-
-// MARK: - Reloading -
-
-extension MediaViewerViewModel {
-    
-    struct PagingAfterReloading: Hashable {
-        let destinationIdentifier: AnyMediaIdentifier
-        let direction: UIPageViewController.NavigationDirection?
-    }
-    
-    func paging(
-        currentIdentifier: AnyMediaIdentifier
-    ) -> PagingAfterReloading {
-        .init(
-            destinationIdentifier: currentIdentifier,
-            direction: nil
-        )
-    }
-}

@@ -50,7 +50,7 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         defer { didPrepare = true }
         
         let mediaViewerView = mediaViewer.view!
-        let currentPageView = mediaViewer.currentPageViewController.mediaViewerOnePageView
+        let currentPageView = mediaViewer.visiblePageViewController.mediaViewerOnePageView
         let currentPageImageView = currentPageView.imageView
         
         // Backup
@@ -232,14 +232,14 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
                 "\(Self.self) works only with the pop animation for \(MediaViewerViewController.self)."
             )
         }
-        return mediaViewer.currentPageViewController.mediaViewerOnePageView
+        return mediaViewer.visiblePageViewController.mediaViewerOnePageView
     }
     
     func panRecognized(
         by recognizer: UIPanGestureRecognizer,
         in mediaViewer: MediaViewerViewController
     ) {
-        let currentPageView = mediaViewer.currentPageViewController.mediaViewerOnePageView
+        let currentPageView = mediaViewer.visiblePageViewController.mediaViewerOnePageView
         let panningImageView = currentPageView.imageView
         
         if let tabBar, tabBar.layer.animationKeys() != nil {

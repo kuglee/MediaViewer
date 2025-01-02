@@ -83,7 +83,7 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         // Determine the layout of the destination before the transition
         mediaViewerView.layoutIfNeeded()
         
-        let currentPageView = mediaViewer.currentPageViewController.mediaViewerOnePageView
+        let currentPageView = mediaViewer.visiblePageViewController.mediaViewerOnePageView
         let currentPageImageView = currentPageView.imageView
         
         /*
@@ -187,7 +187,7 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
 
         // MARK: Prepare for the transition
         
-        let currentPageView = mediaViewer.currentPageViewController.mediaViewerOnePageView
+        let currentPageView = mediaViewer.visiblePageViewController.mediaViewerOnePageView
         let currentPageImageView = currentPageView.imageView
         let currentPageImageFrameInViewer = mediaViewerView.convert(
             currentPageImageView.frame,
