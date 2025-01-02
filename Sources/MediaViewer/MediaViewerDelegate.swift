@@ -29,6 +29,19 @@ public protocol MediaViewerDelegate<MediaIdentifier>: AnyObject {
         _ mediaViewer: MediaViewerViewController,
         didMoveToMediaWith mediaIdentifier: MediaIdentifier
     )
+    
+    func mediaViewerPageIsTransitioning(_ mediaViewer: MediaViewerViewController)
+
+    func mediaViewerPageTapped(_ mediaViewer: MediaViewerViewController)
+
+    func mediaViewerPageDidZoom(
+        _ mediaViewer: MediaViewerViewController,
+        isAtMinimumScale: Bool
+    )
+
+    func mediaViewerPageWillBeginDragging(
+        _ mediaViewer: MediaViewerViewController
+    )
 }
 
 // MARK: - Default implementations -
@@ -43,6 +56,19 @@ extension MediaViewerDelegate {
     public func mediaViewer(
         _ mediaViewer: MediaViewerViewController,
         didMoveToMediaWith mediaIdentifier: MediaIdentifier
+    ) {}
+    
+    public func mediaViewerPageIsTransitioning(_ mediaViewer: MediaViewerViewController) {}
+
+    public func mediaViewerPageTapped(_ mediaViewer: MediaViewerViewController) {}
+
+    public func mediaViewerPageDidZoom(
+        _ mediaViewer: MediaViewerViewController,
+        isAtMinimumScale: Bool
+    ) {}
+
+    public func mediaViewerPageWillBeginDragging(
+        _ mediaViewer: MediaViewerViewController
     ) {}
 }
 

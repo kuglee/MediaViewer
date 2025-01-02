@@ -72,6 +72,16 @@ open class MediaViewerViewController: UIPageViewController {
         visiblePageViewController.mediaIdentifier
     }
     
+    var pendingMediaIdentifier: AnyMediaIdentifier? {
+        pageTransitionState.pendingViewController?.mediaIdentifier
+    }
+    
+    public func pendingMediaIdentifier<MediaIdentifier>(
+        as identifierType: MediaIdentifier.Type = MediaIdentifier.self
+    ) -> MediaIdentifier? {
+        pendingMediaIdentifier?.as(MediaIdentifier.self)
+    }
+    
     /// A view controller for the currently visible page.
     var visiblePageViewController: MediaViewerOnePageViewController {
         guard let mediaViewerOnePage = viewControllers?.first as? MediaViewerOnePageViewController else {
@@ -84,18 +94,9 @@ open class MediaViewerViewController: UIPageViewController {
     
     private var destinationPageVCAfterReloading: MediaViewerOnePageViewController?
     
-    lazy var isShowingMediaOnly: Bool = mediaViewerVM.showsMediaOnly {
-        didSet {
-            setNeedsStatusBarAppearanceUpdate()
-        }
-    }
-    
     private let mediaViewerVM = MediaViewerViewModel()
     
     private lazy var scrollView = view.firstSubview(ofType: UIScrollView.self)!
-    
-    // NOTE: This is required for transition.
-    private let backgroundView = UIView()
     
     private let panRecognizer: UIPanGestureRecognizer = {
         let recognizer = UIPanGestureRecognizer()
@@ -105,9 +106,9 @@ open class MediaViewerViewController: UIPageViewController {
     
     private var interactivePopTransition: MediaViewerInteractivePopTransition?
     
-    private var shouldHideHomeIndicator = false {
+    public var isStatusBarHidden: Bool = false {
         didSet {
-            setNeedsUpdateOfHomeIndicatorAutoHidden()
+            setNeedsStatusBarAppearanceUpdate()
         }
     }
     
@@ -202,9 +203,7 @@ open class MediaViewerViewController: UIPageViewController {
         navigationBarHiddenBackup = navigationController.isNavigationBarHidden
         navigationBarAlphaBackup = navigationController.navigationBar.alpha
         
-        setUpViews()
         setUpGestureRecognizers()
-        setUpSubscriptions()
         
         /*
          NOTE:
@@ -218,135 +217,10 @@ open class MediaViewerViewController: UIPageViewController {
         )
     }
     
-    private func setUpViews() {
-        // Navigation
-        let appearance = UINavigationBarAppearance()
-        appearance.configureWithDefaultBackground()
-        navigationItem.scrollEdgeAppearance = appearance
-        
-        // Subviews
-        configureBackground(showingMediaOnly: false)
-        view.insertSubview(backgroundView, at: 0)
-
-        // Layout
-        backgroundView.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            backgroundView.topAnchor.constraint(equalTo: view.topAnchor),
-            backgroundView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            backgroundView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            backgroundView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
-
-        _ = self.overlayView
-        updateTitle()
-    }
-
-      private lazy var titleLabel: UILabel = {
-          let label = UILabel()
-          label.textAlignment = .center
-
-          return label
-      }()
-
-      private func updateTitle() {
-          let nextMediaIdentifier =
-          switch pageTransitionState.titleState {
-              case .next:
-                  pageTransitionState.pendingViewController?.mediaIdentifier ?? currentMediaIdentifier
-              case .current:
-                  currentMediaIdentifier
-              }
-          let nextPageIndex = mediaViewerVM.page(with: nextMediaIdentifier)!
-
-          titleLabel.text = "\(nextPageIndex + 1)., összesen \(mediaViewerVM.mediaIdentifiers.count)"
-      }
-
-    private lazy var overlayView: UIStackView = {
-        let button = UIButton()
-        var config = UIButton.Configuration.plain()
-        config.image = UIImage(systemName: "xmark.circle.fill")
-        config.baseForegroundColor = .label
-        config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(font: .preferredFont(forTextStyle: .title2))
-        config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8)
-        button.configuration = config
-        button.addTarget(self, action: #selector(closeButtonTapped), for: .touchUpInside)
-        button.translatesAutoresizingMaskIntoConstraints = false
-
-        let spacerView = UIView()
-        spacerView.translatesAutoresizingMaskIntoConstraints = false
-
-        let blurEffect = UIBlurEffect(style: .systemChromeMaterial)
-        let blurView = UIVisualEffectView(effect: blurEffect)
-        blurView.translatesAutoresizingMaskIntoConstraints = false
-
-        let stackView = UIStackView(arrangedSubviews: [spacerView, titleLabel, button ])
-        stackView.axis = .horizontal
-        stackView.alignment = .center
-        stackView.distribution = .equalCentering
-        stackView.insertSubview(blurView, at: 0)
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-
-        self.view.addSubview(stackView)
-
-        NSLayoutConstraint.activate([
-          stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-          stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-          stackView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-          spacerView.widthAnchor.constraint(equalTo: button.widthAnchor),
-          blurView.topAnchor.constraint(equalTo: view.topAnchor),
-          blurView.bottomAnchor.constraint(equalTo: stackView.bottomAnchor),
-          blurView.leadingAnchor.constraint(equalTo: stackView.leadingAnchor),
-          blurView.trailingAnchor.constraint(equalTo: stackView.trailingAnchor)
-        ])
-
-        return stackView
-      }()
-
-    @objc func closeButtonTapped() {
-      self.dismiss(animated: true)
-    }
-    
     private func setUpGestureRecognizers() {
         panRecognizer.delegate = self
         panRecognizer.addTarget(self, action: #selector(panned))
         view.addGestureRecognizer(panRecognizer)
-    }
-    
-    private func setUpSubscriptions() {
-        mediaViewerVM.$showsMediaOnly
-            .dropFirst() // Skip initial
-            .sink { [weak self] showsMediaOnly in
-                guard let self else { return }
-                shouldHideHomeIndicator = showsMediaOnly
-                isShowingMediaOnly = showsMediaOnly
-                
-                let animator = UIViewPropertyAnimator(
-                    duration: UINavigationController.hideShowBarDuration,
-                    dampingRatio: 1
-                ) {
-                    self.overlayView.alpha = showsMediaOnly ? 0 : 1
-                    self.configureBackground(showingMediaOnly: showsMediaOnly)
-                }
-                if showsMediaOnly {
-                    animator.addCompletion { position in
-                        if position == .end {
-                            self.overlayView.isHidden = true
-                        }
-                    }
-                } else {
-                    self.overlayView.isHidden = false
-                }
-                
-                // Ignore single tap during animation
-                let singleTap = visiblePageViewController.singleTapRecognizer
-                singleTap.isEnabled = false
-                animator.addCompletion { _ in
-                    singleTap.isEnabled = true
-                }
-                
-                animator.startAnimation()
-            }
-            .store(in: &cancellables)
     }
     
     open override func viewWillDisappear(_ animated: Bool) {
@@ -395,9 +269,9 @@ open class MediaViewerViewController: UIPageViewController {
         transitionCoordinator?.animate(alongsideTransition: { _ in }) { context in
             if context.isCancelled {
                 // Cancel the appearance restoration
-                tabBar?.isHidden = self.isShowingMediaOnly || self.hidesBottomBarWhenPushed
-                navigationController.navigationBar.alpha = self.isShowingMediaOnly ? 0 : 1
-                navigationController.isNavigationBarHidden = self.isShowingMediaOnly
+                tabBar?.isHidden = self.hidesBottomBarWhenPushed
+                navigationController.navigationBar.alpha = 0
+                navigationController.isNavigationBarHidden = true
             }
         }
     }
@@ -405,11 +279,7 @@ open class MediaViewerViewController: UIPageViewController {
     // MARK: - Override
     
     open override var prefersStatusBarHidden: Bool {
-        isShowingMediaOnly
-    }
-    
-    open override var prefersHomeIndicatorAutoHidden: Bool {
-        shouldHideHomeIndicator
+        isStatusBarHidden
     }
     
     open override func setViewControllers(
@@ -480,8 +350,8 @@ open class MediaViewerViewController: UIPageViewController {
         )
     }
     
-    private func configureBackground(showingMediaOnly: Bool) {
-        backgroundView.backgroundColor = showingMediaOnly ? .black : .systemBackground
+    private func pageIsTransitioning() {
+        mediaViewerDelegate?.mediaViewerPageIsTransitioning(self)
     }
     
     // MARK: - Actions
@@ -540,7 +410,7 @@ extension MediaViewerViewController: MediaViewerOnePageViewControllerDelegate {
     func mediaViewerPageTapped(
         _ mediaViewerPage: MediaViewerOnePageViewController
     ) {
-        mediaViewerVM.showsMediaOnly.toggle()
+        mediaViewerDelegate?.mediaViewerPageTapped(self)
     }
     
     func mediaViewerPageDidZoom(
@@ -550,11 +420,13 @@ extension MediaViewerViewController: MediaViewerOnePageViewControllerDelegate {
             // NOTE: Comes here when the delete animation is complete.
             return
         }
-        mediaViewerVM.showsMediaOnly = true
+        let isAtMinimumScale =
+            mediaViewerPage.mediaViewerOnePageView.scrollView.zoomScale == mediaViewerPage.mediaViewerOnePageView.scrollView.minimumZoomScale
+        mediaViewerDelegate?.mediaViewerPageDidZoom(self, isAtMinimumScale: isAtMinimumScale)
     }
 
     func mediaViewerPageWillBeginDragging(_ mediaViewerPage: MediaViewerOnePageViewController) {
-      mediaViewerVM.showsMediaOnly = true
+        mediaViewerDelegate?.mediaViewerPageWillBeginDragging(self)
     }
 }
 
@@ -776,7 +648,7 @@ extension MediaViewerViewController: UIScrollViewDelegate {
       // is moving in the correct direction for that pending VC
       guard let pendingVC = pageTransitionState.pendingViewController else {
           pageTransitionState.titleState = .current
-          updateTitle()
+          pageIsTransitioning()
           return
       }
 
@@ -794,11 +666,11 @@ extension MediaViewerViewController: UIScrollViewDelegate {
 
           if newTitleState != pageTransitionState.titleState {
               pageTransitionState.titleState = newTitleState
-              updateTitle()
+              pageIsTransitioning()
           }
       } else {
           pageTransitionState.titleState = .current
-          updateTitle()
+          pageIsTransitioning()
       }
   }
 }

@@ -15,8 +15,6 @@ final class MediaViewerViewModel: ObservableObject {
     /// The page number corresponds to the index of this array.
     @Published var mediaIdentifiers: [AnyMediaIdentifier] = []
     
-    @Published var showsMediaOnly = false
-    
     // MARK: - Methods
     
     func mediaIdentifier(forPage page: Int) -> AnyMediaIdentifier? {

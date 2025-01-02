@@ -111,9 +111,7 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
          Specifying alpha solved this problem.
          */
         let navigationBar = navigationController.navigationBar
-        navigationBar.alpha = mediaViewer.isShowingMediaOnly 
-        ? 0.0001 // NOTE: .leastNormalMagnitude didn't work.
-        : 1
+        navigationBar.alpha = 0.0001 // NOTE: .leastNormalMagnitude didn't work.
         
         let viewsToFadeOutDuringTransition = mediaViewer.subviewsToFadeDuringTransition
         
