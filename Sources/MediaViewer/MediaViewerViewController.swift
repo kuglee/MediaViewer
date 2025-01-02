@@ -106,12 +106,6 @@ open class MediaViewerViewController: UIPageViewController {
     
     private var interactivePopTransition: MediaViewerInteractivePopTransition?
     
-    public var isStatusBarHidden: Bool = false {
-        didSet {
-            setNeedsStatusBarAppearanceUpdate()
-        }
-    }
-    
     public var navController: UINavigationController? {
         presentationController?.presentingViewController as? UINavigationController
     }
@@ -186,8 +180,8 @@ open class MediaViewerViewController: UIPageViewController {
     
     // MARK: - Lifecycle
     
-    open override func viewDidLoad() {
-        super.viewDidLoad()
+    open override func loadView() {
+        super.loadView()
         
         dataSource = self
         delegate = self
@@ -204,6 +198,10 @@ open class MediaViewerViewController: UIPageViewController {
         navigationBarAlphaBackup = navigationController.navigationBar.alpha
         
         setUpGestureRecognizers()
+    }
+    
+    open override func viewDidLoad() {
+        super.viewDidLoad()
         
         /*
          NOTE:
@@ -278,10 +276,6 @@ open class MediaViewerViewController: UIPageViewController {
         
     // MARK: - Override
     
-    open override var prefersStatusBarHidden: Bool {
-        isStatusBarHidden
-    }
-    
     open override func setViewControllers(
         _ viewControllers: [UIViewController]?,
         direction: UIPageViewController.NavigationDirection,
@@ -351,7 +345,17 @@ open class MediaViewerViewController: UIPageViewController {
     }
     
     private func pageIsTransitioning() {
-        mediaViewerDelegate?.mediaViewerPageIsTransitioning(self)
+        let transitioningMediaIdentifier =
+        switch pageTransitionState.titleState {
+            case .next:
+                pageTransitionState.pendingViewController?.mediaIdentifier ?? currentMediaIdentifier
+            case .current:
+                currentMediaIdentifier
+            }
+        mediaViewerDelegate?.mediaViewerPageIsTransitioning(
+            self,
+            transitioningMedia: transitioningMediaIdentifier
+        )
     }
     
     // MARK: - Actions

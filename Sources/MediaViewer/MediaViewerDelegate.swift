@@ -30,7 +30,10 @@ public protocol MediaViewerDelegate<MediaIdentifier>: AnyObject {
         didMoveToMediaWith mediaIdentifier: MediaIdentifier
     )
     
-    func mediaViewerPageIsTransitioning(_ mediaViewer: MediaViewerViewController)
+    func mediaViewerPageIsTransitioning(
+        _ mediaViewer: MediaViewerViewController,
+        transitioningMedia  transitioningMediaIdentifier: MediaIdentifier
+    )
 
     func mediaViewerPageTapped(_ mediaViewer: MediaViewerViewController)
 
@@ -58,7 +61,10 @@ extension MediaViewerDelegate {
         didMoveToMediaWith mediaIdentifier: MediaIdentifier
     ) {}
     
-    public func mediaViewerPageIsTransitioning(_ mediaViewer: MediaViewerViewController) {}
+    public func mediaViewerPageIsTransitioning(
+        _ mediaViewer: MediaViewerViewController,
+        transitioningMedia  transitioningMediaIdentifier: MediaIdentifier
+    ) {}
 
     public func mediaViewerPageTapped(_ mediaViewer: MediaViewerViewController) {}
 
@@ -92,6 +98,16 @@ extension MediaViewerDelegate {
         self.mediaViewer(
             mediaViewer,
             didMoveToMediaWith: mediaIdentifier.as(MediaIdentifier.self)
+        )
+    }
+    
+    func mediaViewerPageIsTransitioning(
+        _ mediaViewer: MediaViewerViewController,
+        transitioningMedia  transitioningMediaIdentifier: AnyMediaIdentifier
+    ) {
+        self.mediaViewerPageIsTransitioning(
+          mediaViewer,
+          transitioningMedia: transitioningMediaIdentifier.as(MediaIdentifier.self)
         )
     }
 }
