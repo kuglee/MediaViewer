@@ -113,6 +113,7 @@ open class MediaViewerViewController: UIPageViewController {
     // MARK: Backups
      
     private(set) var tabBarHiddenBackup: Bool?
+    private(set) var tabBarAlphaBackup: CGFloat?
     private(set) var navigationBarHiddenBackup = false
     private(set) var navigationBarAlphaBackup = 1.0
     
@@ -193,7 +194,9 @@ open class MediaViewerViewController: UIPageViewController {
             )
         }
         
-        tabBarHiddenBackup = navController?.tabBarController?.tabBar.isHidden
+        let tabBar = navigationController.tabBarController?.tabBar
+        tabBarHiddenBackup = tabBar?.isHidden
+        tabBarAlphaBackup = tabBar?.alpha
         navigationBarHiddenBackup = navigationController.isNavigationBarHidden
         navigationBarAlphaBackup = navigationController.navigationBar.alpha
         
@@ -233,43 +236,29 @@ open class MediaViewerViewController: UIPageViewController {
         // Restore the appearance
         // NOTE: Animating in the transitionCoordinator.animate(...) didn't work.
         let tabBar = navigationController.tabBarController?.tabBar
-        if let tabBar, let tabBarHiddenBackup {
-            let tabBarWillAppear = tabBar.isHidden && !tabBarHiddenBackup
-            if tabBarWillAppear {
-                /*
-                 NOTE:
-                 This animation will be managed by InteractivePopTransition.
-                 */
-                tabBar.alpha = 0
-                UIView.animate(withDuration: 0.2) {
-                    tabBar.alpha = 1
-                }
-            }
-            tabBar.isHidden = tabBarHiddenBackup
-        }
-        navigationController.navigationBar.alpha = navigationBarAlphaBackup
-
+        let navigationBar = navigationController.navigationBar
+        
         /*
-         [Workaround]
-         Can't use navigationController.setNavigationBarHidden because when
-         navigationBarHiddenBackup is false and setNavigationBarHidden is
-         animated, the navigationBar's alpha value is set to 0.
-
-         To avoid this, use a crossDissolve transition.
+         NOTE:
+         This animation will be managed by InteractivePopTransition.
          */
-        UIView.transition(
-            with: navigationController.navigationBar,
-            duration: animated ? UINavigationController.hideShowBarDuration : 0,
-            options: .transitionCrossDissolve
-        ) {
-            navigationController.isNavigationBarHidden = self.navigationBarHiddenBackup
-        }
+        tabBar?.alpha = 0
+        navigationBar.alpha = 0
+        let duration = MediaViewerTransition.dismissDuration
+        UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
+            if self.tabBarHiddenBackup == false, let tabBarAlphaBackup = self.tabBarAlphaBackup {
+                tabBar?.alpha = tabBarAlphaBackup
+            }
+
+            if !self.navigationBarHiddenBackup {
+                navigationBar.alpha = self.navigationBarAlphaBackup
+            }
+        }.startAnimation()
         transitionCoordinator?.animate(alongsideTransition: { _ in }) { context in
             if context.isCancelled {
                 // Cancel the appearance restoration
-                tabBar?.isHidden = self.hidesBottomBarWhenPushed
+                tabBar?.alpha = 0
                 navigationController.navigationBar.alpha = 0
-                navigationController.isNavigationBarHidden = true
             }
         }
     }

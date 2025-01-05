@@ -18,7 +18,9 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
     private let operation: TransitionOperation
     private let sourceView: UIView?
     private let sourceImage: () -> UIImage?
-    
+    public static let presentDuration: TimeInterval = 0.3
+    public static let dismissDuration: TimeInterval = 0.3
+
     // MARK: - Initializers
     
     init(
@@ -38,9 +40,9 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
     ) -> TimeInterval {
         switch operation {
         case .present:
-            return 0.3
+            Self.presentDuration
         case .dismiss:
-            return 0.3
+            Self.dismissDuration
         }
     }
     
@@ -74,7 +76,6 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         
         // Back up
         let sourceViewHiddenBackup = sourceView?.isHidden ?? false
-        let navigationBarAlphaBackup = navigationBar.alpha
         
         // MARK: Prepare for the transition
         
@@ -125,19 +126,16 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         
         // MARK: Animation
         
-        UIViewPropertyAnimator(duration: 0.2, curve: .easeInOut) {
+        let duration = transitionDuration(using: transitionContext)
+        let animator = UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
             if mediaViewer.tabBarHiddenBackup == false {
                 tabBar?.alpha = 0
             }
 
-            if mediaViewer.navigationBarHiddenBackup {
+            if !mediaViewer.navigationBarHiddenBackup {
                 navigationBar.alpha = 0
             }
-        }.startAnimation()
         
-        let duration = transitionDuration(using: transitionContext)
-        let animator = UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
-            navigationBar.alpha = navigationBarAlphaBackup
             for view in viewsToFadeInDuringTransition {
                 view.alpha = 1
             }
@@ -158,10 +156,6 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
                 currentPageImageView.transitioningConfiguration = configurationBackup
                 currentPageView.restoreLayoutConfigurationAfterTransition()
                 self.sourceView?.isHidden = sourceViewHiddenBackup
-                
-                if let tabBar {
-                    tabBar.isHidden = true
-                }
             case .start, .current:
                 assertionFailure("Unexpected position: \(position)")
             @unknown default:
@@ -207,11 +201,6 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         let viewsToFadeOutDuringTransition = mediaViewer.subviewsToFadeDuringTransition
 
         // MARK: Animation
-        
-        // NOTE: Animate only pageControlToolbar with easeInOut curve.
-        UIViewPropertyAnimator(duration: 0.25, curve: .easeInOut) {
-            mediaViewerView.layoutIfNeeded()
-        }.startAnimation()
         
         let duration = transitionDuration(using: transitionContext)
         let animator = UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
