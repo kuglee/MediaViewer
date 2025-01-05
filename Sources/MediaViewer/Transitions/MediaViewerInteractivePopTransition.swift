@@ -85,6 +85,8 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
             )
         }
         self.transitionContext = transitionContext
+        let containerView = transitionContext.containerView
+        containerView.addSubview(mediaViewer.view)
         
         // Back up
         sourceViewHiddenBackup = sourceView?.isHidden ?? false
@@ -101,14 +103,20 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
             tabBar.scrollEdgeAppearance = appearance
         }
         
-        let navigationBar = navigationController.navigationBar
+        let navigationBarSnapshot = navigationController.navigationBar.snapshotViewWithSafeArea(
+            afterScreenUpdates: true
+        )!
+        navigationBarSnapshot.alpha = 0
+        containerView.addSubview(navigationBarSnapshot)
+        
         let viewsToFadeOutDuringTransition = mediaViewer.subviewsToFadeDuringTransition
         
         // MARK: Animation
         
         animator = UIViewPropertyAnimator(duration: 0.25, dampingRatio: 1) {
-            if let navigationBarAlphaBackup = mediaViewer.navigationBarAlphaBackup {
-                navigationBar.alpha = navigationBarAlphaBackup
+            if let navigationBarAlphaBackup = mediaViewer.navigationBarAlphaBackup,
+                navigationBarAlphaBackup != 0 {
+                navigationBarSnapshot.alpha = navigationBarAlphaBackup
             }
 
             for view in viewsToFadeOutDuringTransition {
@@ -127,6 +135,15 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         let currentPageView = mediaViewerCurrentPageView(in: transitionContext)
         let currentPageImageView = currentPageView.imageView
         let mediaViewer = transitionContext.viewController(forKey: .from) as! MediaViewerViewController
+        let containerView = transitionContext.containerView
+        containerView.addSubview(mediaViewer.view)
+
+        let navigationController = mediaViewer.navController!
+        let navigationBarSnapshot = navigationController.navigationBar.snapshotViewWithSafeArea(
+            afterScreenUpdates: true
+        )!
+        navigationBarSnapshot.alpha = 0
+        containerView.addSubview(navigationBarSnapshot)
         
         tabBar?.scrollEdgeAppearance = tabBarScrollEdgeAppearanceBackup
         
@@ -146,19 +163,18 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
             if let tabBarAlphaBackup = mediaViewer.tabBarAlphaBackup, tabBarAlphaBackup != 0 {
                 self.tabBar?.alpha = tabBarAlphaBackup
             }
+            
+            if let navigationBarAlphaBackup = mediaViewer.navigationBarAlphaBackup,
+                navigationBarAlphaBackup != 0 {
+                navigationBarSnapshot.alpha = navigationBarAlphaBackup
+            }
         }
-        
-        let navigationController = mediaViewer.navController!
-        let navigationBar = navigationController.navigationBar
 
         finishAnimator.addCompletion { _ in
             mediaViewerView.removeFromSuperview()
             
             // Restore properties
             self.sourceView?.isHidden = self.sourceViewHiddenBackup
-            if let navigationBarAlphaBackup = mediaViewer.navigationBarAlphaBackup {
-                navigationBar.alpha = navigationBarAlphaBackup
-            }
 
             if let tabBar = self.tabBar {
                 for (key, value) in self.tabBarAnimationsBackup {
@@ -180,14 +196,9 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         
         let currentPageView = mediaViewerCurrentPageView(in: transitionContext)
         let currentPageImageView = currentPageView.imageView
-        let mediaViewer = transitionContext.viewController(forKey: .from) as! MediaViewerViewController
 
         let cancelAnimator = UIViewPropertyAnimator(duration: 0.3, dampingRatio: 1) {
             currentPageImageView.frame = self.initialImageFrameInViewer
-            
-            if let tabBarAlphaBackup = mediaViewer.tabBarAlphaBackup, tabBarAlphaBackup != 0 {
-                self.tabBar?.alpha = 0
-            }
         }
         
         cancelAnimator.addCompletion { _ in

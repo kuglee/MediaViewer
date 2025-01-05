@@ -220,49 +220,6 @@ open class MediaViewerViewController: UIPageViewController {
         view.addGestureRecognizer(panRecognizer)
     }
     
-    open override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        
-        guard let navigationController = navController else {
-            preconditionFailure(
-                "\(Self.self) must be embedded in UINavigationController."
-            )
-        }
-        
-        // Restore the appearance
-        // NOTE: Animating in the transitionCoordinator.animate(...) didn't work.
-        let tabBar = navigationController.tabBarController?.tabBar
-        let navigationBar = navigationController.navigationBar
-        
-        /*
-         NOTE:
-         This animation will be managed by InteractivePopTransition.
-         */
-        UIViewPropertyAnimator(duration: MediaViewerTransition.dismissDuration, dampingRatio: 1) {
-            if let tabBarAlphaBackup = self.tabBarAlphaBackup, tabBarAlphaBackup != 0 {
-                tabBar?.alpha = tabBarAlphaBackup
-            }
-
-            if let navigationBarAlphaBackup = self.navigationBarAlphaBackup,
-                navigationBarAlphaBackup != 0 {
-                navigationBar.alpha = navigationBarAlphaBackup
-            }
-        }.startAnimation()
-        transitionCoordinator?.animate(alongsideTransition: { _ in }) { context in
-            if context.isCancelled {
-                // Cancel the appearance restoration
-                if let tabBarAlphaBackup = self.tabBarAlphaBackup, tabBarAlphaBackup != 0  {
-                    tabBar?.alpha = 0
-                }
-
-                if let navigationBarAlphaBackup = self.navigationBarAlphaBackup,
-                    navigationBarAlphaBackup != 0 {
-                    navigationBar.alpha = 0
-                }
-            }
-        }
-    }
-        
     // MARK: - Override
     
     open override func setViewControllers(
