@@ -15,12 +15,11 @@ final class MediaViewerInteractivePopTransition: NSObject {
     private var animator: UIViewPropertyAnimator?
     private var transitionContext: (any UIViewControllerContextTransitioning)?
     
-    private var shouldAnimateTabBar = false
-    
     private var tabBar: UITabBar? {
         (transitionContext?.viewController(forKey: .from) as? MediaViewerViewController)?
             .navController?.tabBarController?.tabBar
     }
+    private var tabBarAnimationsBackup: [String: CAAnimation] = [:]
     
     // MARK: Backups
     
@@ -102,21 +101,16 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
             tabBar.scrollEdgeAppearance = appearance
         }
         
-        /*
-         [Workaround]
-         If the navigation bar is hidden on transition start, some animations
-         are applied by system and the bar remains hidden after the transition.
-         Specifying alpha solved this problem.
-         */
         let navigationBar = navigationController.navigationBar
-        navigationBar.alpha = 0.0001 // NOTE: .leastNormalMagnitude didn't work.
-        
         let viewsToFadeOutDuringTransition = mediaViewer.subviewsToFadeDuringTransition
         
         // MARK: Animation
         
         animator = UIViewPropertyAnimator(duration: 0.25, dampingRatio: 1) {
-            navigationBar.alpha = mediaViewer.navigationBarAlphaBackup
+            if let navigationBarAlphaBackup = mediaViewer.navigationBarAlphaBackup {
+                navigationBar.alpha = navigationBarAlphaBackup
+            }
+
             for view in viewsToFadeOutDuringTransition {
                 view.alpha = 0
             }
@@ -149,8 +143,8 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
                 currentPageImageView.alpha = 0
             }
             
-            if self.shouldAnimateTabBar {
-              self.tabBar?.alpha = mediaViewer.tabBarAlphaBackup ?? 1
+            if let tabBarAlphaBackup = mediaViewer.tabBarAlphaBackup, tabBarAlphaBackup != 0 {
+                self.tabBar?.alpha = tabBarAlphaBackup
             }
         }
         
@@ -162,7 +156,15 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
             
             // Restore properties
             self.sourceView?.isHidden = self.sourceViewHiddenBackup
-            navigationBar.alpha = mediaViewer.navigationBarAlphaBackup
+            if let navigationBarAlphaBackup = mediaViewer.navigationBarAlphaBackup {
+                navigationBar.alpha = navigationBarAlphaBackup
+            }
+
+            if let tabBar = self.tabBar {
+                for (key, value) in self.tabBarAnimationsBackup {
+                    tabBar.layer.add(value, forKey: key)
+                }
+            }
 
             transitionContext.completeTransition(true)
         }
@@ -178,11 +180,12 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         
         let currentPageView = mediaViewerCurrentPageView(in: transitionContext)
         let currentPageImageView = currentPageView.imageView
+        let mediaViewer = transitionContext.viewController(forKey: .from) as! MediaViewerViewController
 
         let cancelAnimator = UIViewPropertyAnimator(duration: 0.3, dampingRatio: 1) {
             currentPageImageView.frame = self.initialImageFrameInViewer
             
-            if self.shouldAnimateTabBar {
+            if let tabBarAlphaBackup = mediaViewer.tabBarAlphaBackup, tabBarAlphaBackup != 0 {
                 self.tabBar?.alpha = 0
             }
         }
@@ -220,16 +223,15 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         let currentPageView = mediaViewer.visiblePageViewController.mediaViewerOnePageView
         let panningImageView = currentPageView.imageView
         
-        if let tabBar, tabBar.layer.animationKeys() != nil {
+        if mediaViewer.tabBarAlphaBackup != nil ,let tabBar, tabBar.layer.animationKeys() != nil {
             // Disable the default animation applied to the tabBar
-            tabBar.layer.removeAllAnimations()
+            if let animationKeys = tabBar.layer.animationKeys() {
+                for key in animationKeys{
+                    tabBarAnimationsBackup[key] = tabBar.layer.animation(forKey: key)
+                }
+            }
             
-            /*
-             NOTE:
-             If the animation is applied to the tabBar by system,
-             it should be animated.
-             */
-            shouldAnimateTabBar = true
+            tabBar.layer.removeAllAnimations()
         }
         
         switch recognizer.state {
@@ -254,7 +256,7 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
             animator.fractionComplete = fractionComplete
             transitionContext.updateInteractiveTransition(fractionComplete)
             
-            if shouldAnimateTabBar {
+            if let tabBarAlphaBackup = mediaViewer.tabBarAlphaBackup, tabBarAlphaBackup != 0 {
                 tabBar?.alpha = fractionComplete
             }
             

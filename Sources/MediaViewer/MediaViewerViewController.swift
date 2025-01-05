@@ -112,10 +112,8 @@ open class MediaViewerViewController: UIPageViewController {
     
     // MARK: Backups
      
-    private(set) var tabBarHiddenBackup: Bool?
     private(set) var tabBarAlphaBackup: CGFloat?
-    private(set) var navigationBarHiddenBackup = false
-    private(set) var navigationBarAlphaBackup = 1.0
+    private(set) var navigationBarAlphaBackup: CGFloat?
     
     private var pageTransitionState: PageTransitionState = .init()
 
@@ -195,9 +193,7 @@ open class MediaViewerViewController: UIPageViewController {
         }
         
         let tabBar = navigationController.tabBarController?.tabBar
-        tabBarHiddenBackup = tabBar?.isHidden
         tabBarAlphaBackup = tabBar?.alpha
-        navigationBarHiddenBackup = navigationController.isNavigationBarHidden
         navigationBarAlphaBackup = navigationController.navigationBar.alpha
         
         setUpGestureRecognizers()
@@ -242,23 +238,27 @@ open class MediaViewerViewController: UIPageViewController {
          NOTE:
          This animation will be managed by InteractivePopTransition.
          */
-        tabBar?.alpha = 0
-        navigationBar.alpha = 0
-        let duration = MediaViewerTransition.dismissDuration
-        UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
-            if self.tabBarHiddenBackup == false, let tabBarAlphaBackup = self.tabBarAlphaBackup {
+        UIViewPropertyAnimator(duration: MediaViewerTransition.dismissDuration, dampingRatio: 1) {
+            if let tabBarAlphaBackup = self.tabBarAlphaBackup, tabBarAlphaBackup != 0 {
                 tabBar?.alpha = tabBarAlphaBackup
             }
 
-            if !self.navigationBarHiddenBackup {
-                navigationBar.alpha = self.navigationBarAlphaBackup
+            if let navigationBarAlphaBackup = self.navigationBarAlphaBackup,
+                navigationBarAlphaBackup != 0 {
+                navigationBar.alpha = navigationBarAlphaBackup
             }
         }.startAnimation()
         transitionCoordinator?.animate(alongsideTransition: { _ in }) { context in
             if context.isCancelled {
                 // Cancel the appearance restoration
-                tabBar?.alpha = 0
-                navigationController.navigationBar.alpha = 0
+                if let tabBarAlphaBackup = self.tabBarAlphaBackup, tabBarAlphaBackup != 0  {
+                    tabBar?.alpha = 0
+                }
+
+                if let navigationBarAlphaBackup = self.navigationBarAlphaBackup,
+                    navigationBarAlphaBackup != 0 {
+                    navigationBar.alpha = 0
+                }
             }
         }
     }

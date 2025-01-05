@@ -128,11 +128,12 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         
         let duration = transitionDuration(using: transitionContext)
         let animator = UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
-            if mediaViewer.tabBarHiddenBackup == false {
+            if let tabBarAlphaBackup = mediaViewer.tabBarAlphaBackup,  tabBarAlphaBackup != 0 {
                 tabBar?.alpha = 0
             }
 
-            if !mediaViewer.navigationBarHiddenBackup {
+            if let navigationBarAlphaBackup = mediaViewer.navigationBarAlphaBackup,
+                navigationBarAlphaBackup != 0 {
                 navigationBar.alpha = 0
             }
         
