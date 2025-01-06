@@ -85,12 +85,13 @@ extension NukeImagesViewController: UICollectionViewDelegate {
     let mediaViewer = CustomMediaViewerViewController(
       opening: asset,
       dataSource: self,
+      parentNavigationController: self.navigationController,
       onDismiss: { self.setNeedsStatusBarAppearanceUpdate() }
     )
     self.mediaViewer = mediaViewer
     mediaViewer.mediaViewerDelegate = self
 
-    mediaViewer.modalPresentationStyle = .overCurrentContext
+    mediaViewer.modalPresentationStyle = .overFullScreen
     mediaViewer.modalPresentationCapturesStatusBarAppearance = true
     mediaViewer.transitioningDelegate = mediaViewer
 
@@ -196,10 +197,16 @@ class CustomMediaViewerViewController: MediaViewerViewController {
   public init<MediaIdentifier>(
     opening mediaIdentifier: MediaIdentifier,
     dataSource: some MediaViewerDataSource<MediaIdentifier>,
+    parentNavigationController: UINavigationController? = nil,
     onDismiss: @escaping () -> Void
   ) {
     self.onDismiss = onDismiss
-    super.init(opening: mediaIdentifier, dataSource: dataSource)
+    super
+      .init(
+        opening: mediaIdentifier,
+        dataSource: dataSource,
+        parentNavigationController: parentNavigationController
+      )
   }
 
   override func loadView() {
@@ -207,7 +214,7 @@ class CustomMediaViewerViewController: MediaViewerViewController {
 
     self.view.addSubview(overlayView)
 
-    let navigationBarHeight = self.navigationController?.navigationBar.frame.height ?? 44
+    let navigationBarHeight = self.parentNavigationController?.navigationBar.frame.height ?? 44
 
     overlayView.translatesAutoresizingMaskIntoConstraints = false
     NSLayoutConstraint.activate([

@@ -106,9 +106,7 @@ open class MediaViewerViewController: UIPageViewController {
     
     private var interactivePopTransition: MediaViewerInteractivePopTransition?
     
-    public var navController: UINavigationController? {
-        presentationController?.presentingViewController as? UINavigationController
-    }
+    public var parentNavigationController: UINavigationController?
     
     // MARK: Backups
      
@@ -144,7 +142,8 @@ open class MediaViewerViewController: UIPageViewController {
     ///   - dataSource: The data source for the viewer.
     public init<MediaIdentifier>(
         opening mediaIdentifier: MediaIdentifier,
-        dataSource: some MediaViewerDataSource<MediaIdentifier>
+        dataSource: some MediaViewerDataSource<MediaIdentifier>,
+        parentNavigationController: UINavigationController? = nil
     ) {
         super.init(
             transitionStyle: .scroll,
@@ -170,6 +169,8 @@ open class MediaViewerViewController: UIPageViewController {
         setViewControllers([mediaViewerPage], direction: .forward, animated: false)
         
         hidesBottomBarWhenPushed = true
+        
+        self.parentNavigationController = parentNavigationController
     }
     
     @available(*, unavailable, message: "init(coder:) is not supported.")
@@ -186,15 +187,10 @@ open class MediaViewerViewController: UIPageViewController {
         delegate = self
         scrollView.delegate = self
 
-        guard let navigationController = navController else {
-            preconditionFailure(
-                "\(Self.self) must be embedded in UINavigationController."
-            )
+        if let parentNavigationController = parentNavigationController {
+            tabBarAlphaBackup = parentNavigationController.tabBarController?.tabBar.alpha
+            navigationBarAlphaBackup = parentNavigationController.navigationBar.alpha
         }
-        
-        let tabBar = navigationController.tabBarController?.tabBar
-        tabBarAlphaBackup = tabBar?.alpha
-        navigationBarAlphaBackup = navigationController.navigationBar.alpha
         
         setUpGestureRecognizers()
     }

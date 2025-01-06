@@ -61,8 +61,7 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         using transitionContext: some UIViewControllerContextTransitioning
     ) {
         guard let mediaViewer = transitionContext.viewController(forKey: .to) as? MediaViewerViewController,
-              let mediaViewerView = transitionContext.view(forKey: .to),
-              let navigationController = mediaViewer.navController
+              let mediaViewerView = transitionContext.view(forKey: .to)
         else {
             preconditionFailure(
                 "\(Self.self) works only with the push/pop animation for \(MediaViewerViewController.self)."
@@ -71,13 +70,24 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         let containerView = transitionContext.containerView
         containerView.addSubview(mediaViewerView)
         
-        let tabBar = navigationController.tabBarController?.tabBar
-        let navigationBarSnapshot = navigationController.navigationBar.snapshotViewWithSafeArea(
-            afterScreenUpdates: true
-        )!
-        navigationBarSnapshot.alpha = mediaViewer.navigationBarAlphaBackup ?? 1
-        containerView.addSubview(navigationBarSnapshot)
+        let navigationController = mediaViewer.parentNavigationController
         
+        let tabBarSnapshot = navigationController?.tabBarController?.tabBar.snapshotViewWithFrame(
+            afterScreenUpdates: true
+        )
+        if let tabBarSnapshot {
+          tabBarSnapshot.alpha = mediaViewer.tabBarAlphaBackup ?? 1
+          containerView.addSubview(tabBarSnapshot)
+        }
+        
+        let navigationBarSnapshot = navigationController?.navigationBar.snapshotViewWithSafeArea(
+            afterScreenUpdates: true
+        )
+        if let navigationBarSnapshot {
+            navigationBarSnapshot.alpha = mediaViewer.navigationBarAlphaBackup ?? 1
+            containerView.addSubview(navigationBarSnapshot)
+        }
+
         // Back up
         let sourceViewHiddenBackup = sourceView?.isHidden ?? false
         
@@ -132,11 +142,13 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         
         let duration = transitionDuration(using: transitionContext)
         let animator = UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
-            if let tabBarAlphaBackup = mediaViewer.tabBarAlphaBackup,  tabBarAlphaBackup != 0 {
-                tabBar?.alpha = 0
+            if let tabBarSnapshot, let tabBarAlphaBackup = mediaViewer.tabBarAlphaBackup,
+                tabBarAlphaBackup != 0 {
+                tabBarSnapshot.alpha = 0
             }
 
-            if let navigationBarAlphaBackup = mediaViewer.navigationBarAlphaBackup,
+            if let navigationBarSnapshot,
+                let navigationBarAlphaBackup = mediaViewer.navigationBarAlphaBackup,
                 navigationBarAlphaBackup != 0 {
                 navigationBarSnapshot.alpha = 0
             }
@@ -174,8 +186,7 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         using transitionContext: some UIViewControllerContextTransitioning
     ) {
         guard let mediaViewer = transitionContext.viewController(forKey: .from) as? MediaViewerViewController,
-              let mediaViewerView = transitionContext.view(forKey: .from),
-              let navigationController = mediaViewer.navController
+              let mediaViewerView = transitionContext.view(forKey: .from)
         else {
             preconditionFailure(
                 "\(Self.self) works only with the push/pop animation for \(MediaViewerViewController.self)."
@@ -185,12 +196,23 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         let containerView = transitionContext.containerView
         containerView.addSubview(mediaViewerView)
         
-        let tabBar = navigationController.tabBarController?.tabBar
-        let navigationBarSnapshot = navigationController.navigationBar.snapshotViewWithSafeArea(
+        let navigationController = mediaViewer.parentNavigationController
+        
+        let tabBarSnapshot = navigationController?.tabBarController?.tabBar.snapshotViewWithFrame(
             afterScreenUpdates: true
-        )!
-        navigationBarSnapshot.alpha = 0
-        containerView.addSubview(navigationBarSnapshot)
+        )
+        if let tabBarSnapshot {
+          tabBarSnapshot.alpha = 0
+          containerView.addSubview(tabBarSnapshot)
+        }
+        
+        let navigationBarSnapshot = navigationController?.navigationBar.snapshotViewWithSafeArea(
+            afterScreenUpdates: true
+        )
+        if let navigationBarSnapshot {
+            navigationBarSnapshot.alpha = 0
+            containerView.addSubview(navigationBarSnapshot)
+        }
 
         // Back up
         let sourceViewHiddenBackup = sourceView?.isHidden ?? false
@@ -220,11 +242,13 @@ final class MediaViewerTransition: NSObject, UIViewControllerAnimatedTransitioni
         
         let duration = transitionDuration(using: transitionContext)
         let animator = UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
-            if let tabBarAlphaBackup = mediaViewer.tabBarAlphaBackup,  tabBarAlphaBackup != 0 {
-                tabBar?.alpha = tabBarAlphaBackup
+            if let tabBarSnapshot, let tabBarAlphaBackup = mediaViewer.tabBarAlphaBackup,
+                tabBarAlphaBackup != 0 {
+                tabBarSnapshot.alpha = tabBarAlphaBackup
             }
             
-            if let navigationBarAlphaBackup = mediaViewer.navigationBarAlphaBackup,
+            if let navigationBarSnapshot,
+                let navigationBarAlphaBackup = mediaViewer.navigationBarAlphaBackup,
                 navigationBarAlphaBackup != 0 {
                 navigationBarSnapshot.alpha = navigationBarAlphaBackup
             }

@@ -14,17 +14,12 @@ final class MediaViewerInteractivePopTransition: NSObject {
     
     private var animator: UIViewPropertyAnimator?
     private var transitionContext: (any UIViewControllerContextTransitioning)?
-    
-    private var tabBar: UITabBar? {
-        (transitionContext?.viewController(forKey: .from) as? MediaViewerViewController)?
-            .navController?.tabBarController?.tabBar
-    }
-    private var tabBarAnimationsBackup: [String: CAAnimation] = [:]
+    private var tabBarSnapshot: UIView?
+    private var navigationBarSnapshot: UIView?
     
     // MARK: Backups
     
     private var sourceViewHiddenBackup = false
-    private var tabBarScrollEdgeAppearanceBackup: UITabBarAppearance?
     private var initialZoomScale: CGFloat = 1
     private var initialImageTransform = CGAffineTransform.identity
     private var initialImageFrameInViewer = CGRect.null
@@ -77,8 +72,7 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
     ) {
         assert(didPrepare)
         
-        guard let mediaViewer = transitionContext.viewController(forKey: .from) as? MediaViewerViewController,
-              let navigationController = mediaViewer.navController
+        guard let mediaViewer = transitionContext.viewController(forKey: .from) as? MediaViewerViewController
         else {
             preconditionFailure(
                 "\(Self.self) works only with the pop animation for \(MediaViewerViewController.self)."
@@ -90,31 +84,42 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         
         // Back up
         sourceViewHiddenBackup = sourceView?.isHidden ?? false
-        tabBarScrollEdgeAppearanceBackup = tabBar?.scrollEdgeAppearance
         
         // MARK: Prepare for the transition
         
         sourceView?.isHidden = true
         
-        if let tabBar {
-            // Make tabBar opaque during the transition
-            let appearance = UITabBarAppearance()
-            appearance.configureWithDefaultBackground()
-            tabBar.scrollEdgeAppearance = appearance
+        let navigationController = mediaViewer.parentNavigationController
+        
+        tabBarSnapshot = navigationController?.tabBarController?.tabBar.snapshotViewWithFrame(
+            afterScreenUpdates: true
+        )
+        if let tabBarSnapshot {
+            tabBarSnapshot.alpha = 0
+            containerView.addSubview(tabBarSnapshot)
         }
         
-        let navigationBarSnapshot = navigationController.navigationBar.snapshotViewWithSafeArea(
+        navigationBarSnapshot = navigationController?.navigationBar.snapshotViewWithSafeArea(
             afterScreenUpdates: true
-        )!
-        navigationBarSnapshot.alpha = 0
-        containerView.addSubview(navigationBarSnapshot)
+        )
+        if let navigationBarSnapshot {
+            navigationBarSnapshot.alpha = 0
+            containerView.addSubview(navigationBarSnapshot)
+        }
         
         let viewsToFadeOutDuringTransition = mediaViewer.subviewsToFadeDuringTransition
         
         // MARK: Animation
         
         animator = UIViewPropertyAnimator(duration: 0.25, dampingRatio: 1) {
-            if let navigationBarAlphaBackup = mediaViewer.navigationBarAlphaBackup,
+            if let tabBarSnapshot = self.tabBarSnapshot,
+                let tabBarAlphaBackup = mediaViewer.tabBarAlphaBackup,
+                tabBarAlphaBackup != 0 {
+                tabBarSnapshot.alpha = tabBarAlphaBackup
+            }
+
+            if let navigationBarSnapshot = self.navigationBarSnapshot,
+                let navigationBarAlphaBackup = mediaViewer.navigationBarAlphaBackup,
                 navigationBarAlphaBackup != 0 {
                 navigationBarSnapshot.alpha = navigationBarAlphaBackup
             }
@@ -134,18 +139,6 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         let mediaViewerView = transitionContext.view(forKey: .from)!
         let currentPageView = mediaViewerCurrentPageView(in: transitionContext)
         let currentPageImageView = currentPageView.imageView
-        let mediaViewer = transitionContext.viewController(forKey: .from) as! MediaViewerViewController
-        let containerView = transitionContext.containerView
-        containerView.addSubview(mediaViewer.view)
-
-        let navigationController = mediaViewer.navController!
-        let navigationBarSnapshot = navigationController.navigationBar.snapshotViewWithSafeArea(
-            afterScreenUpdates: true
-        )!
-        navigationBarSnapshot.alpha = 0
-        containerView.addSubview(navigationBarSnapshot)
-        
-        tabBar?.scrollEdgeAppearance = tabBarScrollEdgeAppearanceBackup
         
         let finishAnimator = UIViewPropertyAnimator(duration: 0.35, dampingRatio: 1) {
             if let sourceView = self.sourceView {
@@ -159,15 +152,6 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
             } else {
                 currentPageImageView.alpha = 0
             }
-            
-            if let tabBarAlphaBackup = mediaViewer.tabBarAlphaBackup, tabBarAlphaBackup != 0 {
-                self.tabBar?.alpha = tabBarAlphaBackup
-            }
-            
-            if let navigationBarAlphaBackup = mediaViewer.navigationBarAlphaBackup,
-                navigationBarAlphaBackup != 0 {
-                navigationBarSnapshot.alpha = navigationBarAlphaBackup
-            }
         }
 
         finishAnimator.addCompletion { _ in
@@ -175,12 +159,6 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
             
             // Restore properties
             self.sourceView?.isHidden = self.sourceViewHiddenBackup
-
-            if let tabBar = self.tabBar {
-                for (key, value) in self.tabBarAnimationsBackup {
-                    tabBar.layer.add(value, forKey: key)
-                }
-            }
 
             transitionContext.completeTransition(true)
         }
@@ -208,9 +186,6 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
             currentPageImageView.transform = self.initialImageTransform
             currentPageView.restoreLayoutConfigurationAfterTransition()
             
-            self.tabBar?.scrollEdgeAppearance = self.tabBarScrollEdgeAppearanceBackup
-            self.tabBar?.alpha = 0
-            
             transitionContext.completeTransition(false)
         }
         cancelAnimator.startAnimation()
@@ -234,17 +209,6 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
         let currentPageView = mediaViewer.visiblePageViewController.mediaViewerOnePageView
         let panningImageView = currentPageView.imageView
         
-        if mediaViewer.tabBarAlphaBackup != nil ,let tabBar, tabBar.layer.animationKeys() != nil {
-            // Disable the default animation applied to the tabBar
-            if let animationKeys = tabBar.layer.animationKeys() {
-                for key in animationKeys{
-                    tabBarAnimationsBackup[key] = tabBar.layer.animation(forKey: key)
-                }
-            }
-            
-            tabBar.layer.removeAllAnimations()
-        }
-        
         switch recognizer.state {
         case .possible, .began:
             // Adjust the anchor point to scale the image around a finger
@@ -266,10 +230,6 @@ extension MediaViewerInteractivePopTransition: UIViewControllerInteractiveTransi
             let fractionComplete = max(min(transitionProgress, 1), 0)
             animator.fractionComplete = fractionComplete
             transitionContext.updateInteractiveTransition(fractionComplete)
-            
-            if let tabBarAlphaBackup = mediaViewer.tabBarAlphaBackup, tabBarAlphaBackup != 0 {
-                tabBar?.alpha = fractionComplete
-            }
             
             panningImageView.transform = panningImageTransform(
                 translation: translation,
